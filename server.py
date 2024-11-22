@@ -4,15 +4,13 @@ import re
 
 # Base de datos de archivos en memoria
 x = ["vacaciones","verano","calor"]
-file_system = {"img1.jpg":set(x),"img2.jpg":set(x), "text.txt":set(x), "img4.png":set(["Varadero","verano"])}
+file_system = {"img1.jpg":set(x),"img2.jpg":set(x), "text.txt":set(x), "img4.png":set(["Varadero","verano"]),"img5.png":set(["Varadero","provincia"]),"img6.png":set(["Cienfuegos","provincia"]) }
 
 def transform_query(input_query):
     # Reemplaza todas las ocurrencias de @tag por 'tag' in tags
     transformed_query = re.sub(r'@(\w+)', r"'\1' in tags", input_query)
-    print(f"Transformed data: {transformed_query}")
+    # print(f"Transformed data: {transformed_query}")
     return transformed_query
-
-
 
 def process_request(command, payload):
     global file_system
@@ -76,7 +74,11 @@ def process_request(command, payload):
         for file, tags in file_system.items():
             if eval(transform_query(tag_query)):
                 file_system[file].difference_update(tag_list)
+                if len(file_system[file])==0:
+                    del file_system[file]
+                
                 query_sat = True
+        
         if not query_sat:
             return {"error": f"No files match the query: {tag_query}"}
         return {"message": f"Tags {tag_list} removed from matching files."}

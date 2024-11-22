@@ -32,7 +32,10 @@ def main():
 
         if choice == "1":
             files = input("Enter file names (comma-separated): ").split(",")
+            files = [file.strip() for file in files]
             tags = input("Enter tags (comma-separated): ").split(",")
+            tags = [tag.strip() for tag in tags]
+            print(f'Estos son tags: {tags }')
             send_request("add", {"file_list": files, "tag_list": tags})
 
         elif choice == "2":
@@ -46,11 +49,13 @@ def main():
         elif choice == "4":
             query = input("Enter tag query (e.g., 'tag1 in tags AND tag2 in tags'): ")
             tags = input("Enter tags to add (comma-separated): ").split(",")
+            tags = [tag.strip() for tag in tags]
             send_request("add-tags", {"tag_query": query, "tag_list": tags})
 
         elif choice == "5":
             query = input("Enter tag query (e.g., 'tag1 in tags AND tag2 in tags'): ")
             tags = input("Enter tags to delete (comma-separated): ").split(",")
+            tags = [tag.strip() for tag in tags]
             send_request("delete-tags", {"tag_query": query, "tag_list": tags})
 
         elif choice == "6":
