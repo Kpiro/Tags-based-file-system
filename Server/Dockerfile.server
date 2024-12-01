@@ -1,0 +1,20 @@
+# Usa una imagen base de Python 3.11
+FROM python:3.11-slim
+
+# Establece el directorio de trabajo dentro del contenedor
+WORKDIR /app
+
+# Copia los archivos del servidor
+COPY . /app/
+
+# Copia también la carpeta Utils, que es requerida por el servidor
+COPY ../Utils /app/Utils
+
+# Instala las dependencias necesarias
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Expone el puerto 5000 para el servidor
+EXPOSE 5000
+
+# Comando para iniciar el servidor
+CMD ["python","-m", "Server.server"]

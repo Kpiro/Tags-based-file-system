@@ -1,0 +1,17 @@
+# Usa una imagen base de Python 3.11
+FROM python:3.11-slim
+
+# Establece el directorio de trabajo dentro del contenedor
+WORKDIR /app
+
+# Copia los archivos del servidor
+COPY . /app/
+
+# Copia solo los archivos necesarios para el cliente
+COPY ../Utils /app/Utils
+
+# Instala las dependencias necesarias
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Especifica el comando para ejecutar el cliente
+CMD ["python","-m", "Client.client"]

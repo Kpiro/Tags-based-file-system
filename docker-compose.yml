@@ -1,0 +1,58 @@
+version: "3.9"
+
+networks:
+  clients:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.0.10.0/24
+  servers:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.0.11.0/24
+
+volumes:
+  server-data:
+  server-storage:
+
+services:
+  router:
+    image: router-image
+    container_name: router
+    networks:
+      - clients
+      - servers
+    ports:
+      - "80:80"  # Ejemplo: expone el puerto 80 para el enrutador
+
+  server:
+    image: server-image
+    container_name: server
+    networks:
+      - servers
+    volumes:
+      - ./Server/data.json:/app/Server/data.json
+      - server-storage:/app/Server/Storage
+    ports:
+      - "5000:5000"  # Expone el puerto 5000 para el servidor
+
+  client1:
+    image: client-image
+    container_name: client1
+    networks:
+      - clients
+
+
+  client2:
+    image: client-image
+    container_name: client2
+    networks:
+      - clients
+
+
+  client3:
+    image: client-image
+    container_name: client3
+    networks:
+      - clients
