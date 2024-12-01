@@ -1,6 +1,8 @@
 from colorama import Fore, Back, Style, init
 import socket
 import json
+from Utils.utils import *
+
 
 # Inicializa colorama
 init(autoreset=True)
@@ -57,9 +59,9 @@ class Client:
             # Recibir respuesta
             response = self.client_socket.recv(1024).decode('utf-8')
             print(response)
-            parsed_response = json.loads(response)
-            key, value = list(parsed_response.items())[0]
-            print(f'{key} {value}')
+            # parsed_response = json.loads(response)
+            # key, value = list(parsed_response.items())[0]
+            # print(f'{key} {value}')
 
         except Exception as e:
             print(f"[ERROR] {e}")
@@ -69,27 +71,43 @@ class Client:
         if command == "exit":
             self.client_socket.close()
             return
+        elif command == "show":
+            s=""
+            s+="{"
+            s+="}"
+            self.send_request("show",s)
+            return
 
-        parts = command.split(" ", 2)
-        print(f'parts: {parts}')
+        try:
+            parts = command.split(" ", 1)
+        except:
+            print(InvalidCommandError(command))
+            return
 
-        if parts[0]!="tagger":
-            print(f"[ERROR] Invalid command")
-        params = parts[2].split("--")
-        print(f'params: {params}')
+        # print(f'parts: {parts}')
+
+        try:
+            params = parts[1].split("--")
+        except:
+            print(InvalidCommandError(command))
+            return
+        # print(f'params: {params}')
 
         json_request = "{"
 
         for i in range(1,len(params)):
             args = params[i].split(" ",1)
-            print(f'args[0]: {args[0]}')
+            if len(args)!=2:
+                print(InvalidCommandError(command))
+                return
+
             if i== len(params)-1:
                 json_request+=f'"{args[0]}": "{args[1]}"'
                 json_request+="}"
             else:
                 json_request+=f'"{args[0]}": "{args[1]}",'
 
-        self.send_request(parts[1],json_request)
+        self.send_request(parts[0],json_request)
     
 
 if __name__ == "__main__":
@@ -99,6 +117,6 @@ if __name__ == "__main__":
         command = input("Enter a command: ")
         client.parse_command(command)
         if command == "exit":
-            print("Exiting...")
+            print("🏃 Exiting...")
             break
 

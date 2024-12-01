@@ -1,18 +1,36 @@
 {
     "foto1.jpg": [
         "hotel",
-        "Varadero",
         "vacaciones",
+        "Varadero",
         "familia"
     ],
     "foto2.png": [
         "hotel",
-        "Varadero",
         "vacaciones",
+        "Varadero",
         "familia"
     ],
     "tititeamoo.txt": [
-        "felicidad",
-        "amor"
+        "amor",
+        "felicidad"
+    ],
+    "codigo.py": [
+        "4to",
+        "python",
+        "programacion",
+        "escuela"
+    ],
+    "codigo2.py": [
+        "4to",
+        "proyecto",
+        "escuela"
+    ],
+    "project.py": [
+        "esteproyecto"
+    ],
+    "data.json": [
+        "4to",
+        "hola"
     ]
 }
