@@ -1,20 +1,26 @@
-# Usa una imagen base de Python 3.11
+# Usando una imagen base de Python 3.11
 FROM python:3.11-slim
 
-# Establece el directorio de trabajo dentro del contenedor
+# Crear directorio de trabajo
 WORKDIR /app
 
-# Copia los archivos del servidor
-COPY . /app/
+# Instalar herramientas de red necesarias
+RUN apt-get update && apt-get install -y --no-install-recommends iproute2 && rm -rf /var/lib/apt/lists/*
 
-# Copia también la carpeta Utils, que es requerida por el servidor
-COPY ../Utils /app/Utils
+# Copiar los archivos necesarios
+COPY Server/Storage /app/Server/Storage
+COPY Server/data.json /app/Server/data.json
+COPY Server/FileSystem.py /app/Server/FileSystem.py
+COPY Server/requirements.txt /app/requirements.txt
+COPY Server/server.py /app/Server/server.py
+COPY Server/server.sh /usr/local/bin/server.sh
+COPY Server/utils_server.py /app/Server/utils_server.py
 
-# Instala las dependencias necesarias
+# Instalar las dependencias necesarias
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Expone el puerto 5000 para el servidor
-EXPOSE 5000
+# Asegurarse de que el script sea ejecutable
+RUN chmod +x /usr/local/bin/server.sh
 
-# Comando para iniciar el servidor
-CMD ["python","-m", "Server.server"]
+# Ejecutar el script de configuración y luego iniciar el servidor
+ENTRYPOINT ["/bin/bash", "-c", "/usr/local/bin/server.sh && python /app/Server/server.py"]

@@ -1,44 +1,66 @@
 @echo off
 
-where docker >nul 2>nul
+echo "Creando redes..."
+docker network create clients --subnet 10.0.10.0/24
 if %ERRORLEVEL% neq 0 (
-    echo Docker is not installed. Please install it before continuing.
+    echo Error creating clients networks.
+    exit /b 1
+)
+docker network create servers --subnet 10.0.11.0/24
+if %ERRORLEVEL% neq 0 (
+    echo Error creating servers networks.
     exit /b 1
 )
 
-where docker-compose >nul 2>nul
-if %ERRORLEVEL% neq 0 (
-    echo Docker Compose is not installed. Please install it before continuing.
-    exit /b 1
-)
-
-echo Building the router image...
+echo "Construyendo la imagen del router..."
 docker build -t router-image -f Router/Dockerfile.router .
 if %ERRORLEVEL% neq 0 (
-    echo Error building the router image.
+    echo Error building router image.
     exit /b 1
 )
 
-echo Building the server image...
-docker build -t server-image -f Server/Dockerfile.server .
+echo "Creando y configurando el router..."
+docker run -itd --rm --name router router-image
 if %ERRORLEVEL% neq 0 (
-    echo Error building the server image.
+    echo Error creating and configurating router.
     exit /b 1
 )
-
-echo Building the client image...
-docker build -t client-image -f Client/Dockerfile.client .
+docker network connect --ip 10.0.10.254 clients router
 if %ERRORLEVEL% neq 0 (
-    echo Error building the client image.
+    echo Error connecting router to clients network.
     exit /b 1
 )
-
-echo Starting the containers with Docker Compose...
-docker-compose up -d
+docker network connect --ip 10.0.11.254 servers router
 if %ERRORLEVEL% neq 0 (
-    echo Error starting the containers with Docker Compose.
+    echo Error connecting router to servers network.
     exit /b 1
 )
 
-echo The network has been successfully set up.
+echo "Construyendo las imágenes de cliente y servidor..."
+docker build -t client -f Client/Dockerfile.client .
+if %ERRORLEVEL% neq 0 (
+    echo Error building client image.
+    exit /b 1
+)
+docker build -t server -f Server/Dockerfile.server .
+if %ERRORLEVEL% neq 0 (
+    echo Error building server image.
+    exit /b 1
+)
+
+echo "Startup completado."
+
+echo "Iniciando el servidor..."
+docker run -d --name server1 --cap-add NET_ADMIN --network servers server
+if %ERRORLEVEL% neq 0 (
+    echo Error starting server container.
+    exit /b 1
+)
+
+echo "Iniciando el cliente..."
+docker run -it --name client1 --cap-add NET_ADMIN --network clients client
+if %ERRORLEVEL% neq 0 (
+    echo Error starting client container.
+    exit /b 1
+)
 pause

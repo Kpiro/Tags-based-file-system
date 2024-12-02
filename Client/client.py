@@ -1,7 +1,7 @@
 from colorama import Fore, Back, Style, init
 import socket
 import json
-from Utils.utils import *
+from utils_client import *
 import os
 
 
@@ -12,7 +12,7 @@ class Client:
 
     def __init__(self):
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.client_socket.connect(("10.0.11.254", 5000))
+        self.client_socket.connect(("10.0.11.2", 5000))
 
     def show_menu(self):
         # Imprimir el menú con colores

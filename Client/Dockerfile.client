@@ -1,22 +1,23 @@
 # Usa una imagen base de Python 3.11
 FROM python:3.11-slim
 
-# Establece el directorio de trabajo dentro del contenedor
+# Instalar herramientas de red necesarias
+RUN apt-get update && apt-get install -y --no-install-recommends iproute2 && rm -rf /var/lib/apt/lists/*
+
+# Crear directorio de trabajo
 WORKDIR /app
 
-# Copia los archivos del directorio Client al contenedor
-COPY . /app/
+# Copiar los archivos necesarios
+COPY Client/client.py /app/Client/client.py
+COPY Client/client.sh /usr/local/bin/client.sh
+COPY Client/requirements.txt /app/requirements.txt
+COPY Client/utils_client.py /app/Client/utils_client.py
 
-# Copia los archivos del directorio Utils al contenedor
-COPY ../Utils /app/Utils
-
-# Instala las dependencias necesarias
+# Instalar las dependencias necesarias
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Da permisos de ejecución al script startup.sh
-# RUN chmod +x ./startup.sh
+# Asegurarse de que el script sea ejecutable
+RUN chmod +x /usr/local/bin/client.sh
 
-# Especifica el comando para ejecutar el cliente
-# CMD ["sh", "-c", "/app/startup.sh && tail -f /dev/null"]
-# CMD ["python","-m", "Client.client"]
-CMD ["tail", "-f", "/dev/null"]
+# Ejecutar el script de configuración y luego el cliente
+ENTRYPOINT ["/bin/bash", "-c", "/usr/local/bin/client.sh && python /app/Client/client.py"]

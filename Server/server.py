@@ -2,8 +2,8 @@ import socket
 import json
 import re
 import threading
-from Server.FileSystem import TagFileSystem
-from Utils.utils import *
+from FileSystem import TagFileSystem
+from utils_server import *
 
 class Server:
 
