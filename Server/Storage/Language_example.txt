@@ -1,0 +1,7 @@
+Life: 500
+Defense: 1000
+Damage: 400
+Speed: 50
+
+State Patroling:
+Move random in a radius of 500 around invocation point

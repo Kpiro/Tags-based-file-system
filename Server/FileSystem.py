@@ -39,27 +39,42 @@ class TagFileSystem:
             raise e
         return transformed_query
 
-    def add(self, files:List[str], tags:List[str]):
+    
+    def add(self,num_files, tag_list:List[str], client_socket):
 
-        tag_list = set(tags)
-        for file_path in files:
+        for i in range(num_files):
+            if client_socket.recv(1024).decode() != "OK":
+                return 
             
-            file_name = os.path.basename(file_path)
+            try:
+                file_size1 = client_socket.recv(1024).decode()
+                file_size = int(file_size1)
+            except Exception as e:
+                return str(Error(e))
+            client_socket.send("OK".encode())
+
+            try:
+                file_name = client_socket.recv(1024).decode()
+            except Exception as e:
+                return str(Error(e))
+            client_socket.send("OK".encode())
             
             if self.files.get(file_name):
                 unique_id = str(uuid.uuid4())
                 print(f"File {file_name} added with name {file_name+unique_id}")
                 file_parts = file_name.split(".")
                 file_name = file_parts[0] + unique_id + file_parts[1]
-            if not os.path.isfile(file_path):
-                return str(InvalidPathError(file_path))
             destination_path = os.path.join(self.storage_path, file_name)
-            try:
-                shutil.copy(file_path, destination_path)
-            except Exception as e:
-                return str(FailCopy(file_path))
+            with open(destination_path, "wb") as file:
+                received_size = 0
+                while received_size < file_size:
+                    data = client_socket.recv(1024)
+                    file.write(data)
+                    received_size += len(data)
+                print(f'File {file_name} received successfully.')
             self.files[file_name] = tag_list
-        return str(Response("Files added successfully."))
+        return str(Response("Files added successfully."))  
+            
 
     def delete(self, tag_query):
         try:
@@ -68,8 +83,14 @@ class TagFileSystem:
             return str(InvalidQuery(tag_query))
         if len(to_delete) == 0:
             return str(NoFilesMatch(tag_query))
-        for file in to_delete:
-            del self.files[file]
+        for file_name in to_delete:
+            destination_path = os.path.join(self.storage_path, file_name)
+            try:
+                os.remove(destination_path)
+                print(f'File {file_name} deleted successfully')
+            except Exception as e:
+                return str(Error(e))
+            del self.files[file_name]
         return str(Response("Files deleted successfully."))+str(MatchingFiles(to_delete))
 
     def list(self, tag_query):
@@ -99,13 +120,19 @@ class TagFileSystem:
     def delete_tags(self, tag_query, tag_list):
         tag_list = set(tag_list)
         to_delete_tags=[]
-        for file, tags in self.files.items():
+        for file_name, tags in self.files.items():
             try:
                 if eval(self.transform_query(tag_query)):
-                    self.files[file].difference_update(tag_list)
-                    to_delete_tags.append(file)
-                    if len(self.files[file]) == 0:
-                        del self.files[file]
+                    self.files[file_name].difference_update(tag_list)
+                    to_delete_tags.append(file_name)
+                    if len(self.files[file_name]) == 0:
+                        destination_path = os.path.join(self.storage_path, file_name)
+                        try:
+                            os.remove(destination_path)
+                            print(f'File {file_name} deleted successfully')
+                        except Exception as e:
+                            return str(Error(e))
+                        del self.files[file_name]
             except:
                 return str(InvalidQuery(tag_query))
         if len(to_delete_tags)==0:

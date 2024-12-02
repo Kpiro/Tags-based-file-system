@@ -30,25 +30,32 @@ class Server:
         print(f"🔌 [CONNECTION] Client connected from {address}")
         try:
             while True:
-                data = client_socket.recv(1024).decode('utf-8')
+                try:
+                    data = client_socket.recv(1024).decode('utf-8')
+                except:
+                    self.file_system.save_db()
+                    client_socket.close()
+                    print(f"🔌🚫 [DISCONNECT] Client disconnected from {address}")
+                    return
                 if not data:
-                    print("Va a guardar la bd")
                     self.file_system.save_db()
                     break
                 request = json.loads(data)
                 command = request.get("command")
                 payload = request.get("payload", {})
-                response = self.process_request(command, json.loads(payload))
-                client_socket.send(response.encode('utf-8'))
+                response = self.process_request(command, json.loads(payload), client_socket)
+                if response != None:
+                    client_socket.send(response.encode('utf-8'))
+                
         except Exception as e:
-            print(f"[ERROR] {e}")
+            print(Error(e))
             client_socket.send(json.dumps({"error": str(e)}).encode('utf-8'))
             self.file_system.save_db()
             client_socket.close()
-            print(f"[DISCONNECT] Client disconnected from {address}")
+            print(f"🔌🚫 [DISCONNECT] Client disconnected from {address}")
             
 
-    def process_request(self,command, payload):
+    def process_request(self,command, payload, client_socket):
 
         if command == "show":
             return str(StorageFiles(self.file_system.files))
@@ -66,7 +73,8 @@ class Server:
         elif command == "add":
             if payload.get("tags"):
                 if payload.get("file"):
-                    return self.file_system.add(files=[x.strip() for x in payload["file"].split(",")],tags=[x.strip() for x in payload["tags"].split(",")])
+                    client_socket.send("Command received".encode('utf-8'))
+                    return self.file_system.add(num_files=int(payload["file"]),tag_list=[x.strip() for x in payload["tags"].split(",")], client_socket=client_socket)
                 elif payload.get("query"):
                     return self.file_system.add_tags(tag_query=payload["query"],tag_list=[x.strip() for x in payload["tags"].split(",")])
         else:

@@ -2,6 +2,7 @@ from colorama import Fore, Back, Style, init
 import socket
 import json
 from Utils.utils import *
+import os
 
 
 # Inicializa colorama
@@ -59,12 +60,49 @@ class Client:
             # Recibir respuesta
             response = self.client_socket.recv(1024).decode('utf-8')
             print(response)
-            # parsed_response = json.loads(response)
-            # key, value = list(parsed_response.items())[0]
-            # print(f'{key} {value}')
 
         except Exception as e:
-            print(f"[ERROR] {e}")
+            print(Error(e))
+
+    def send_files(self,files):
+
+            for file_path in files:
+
+                try:
+                    file_size = os.path.getsize(file_path)
+                except FileNotFoundError:
+                    print(InvalidPathError(file_path))
+                    self.client_socket.send(str(InvalidPathError(file_path)).encode())
+                    return
+                if not os.path.isfile(file_path):
+                    self.client_socket.send(str(InvalidPathError(file_path)).encode())
+                    print(InvalidPathError(file_path))
+                    return
+                else:
+                    self.client_socket.send("OK".encode())
+                
+                # Enviar información del archivo
+                self.client_socket.send(f"{file_size}".encode())
+                response = self.client_socket.recv(1024).decode()
+                
+                if response != "OK":
+                    print(response)
+                    return
+                
+                file_name = os.path.basename(file_path)
+
+                self.client_socket.send(file_name.encode())
+                response = self.client_socket.recv(1024).decode()
+
+                if response != "OK":
+                    print(response)
+                    return
+                
+                # Enviar archivo
+                with open(file_path, "rb") as file:
+                    while chunk := file.read(1024):
+                        self.client_socket.send(chunk)
+            print(self.client_socket.recv(1024).decode())
 
     def parse_command(self,command):
 
@@ -84,17 +122,15 @@ class Client:
             print(InvalidCommandError(command))
             return
 
-        # print(f'parts: {parts}')
-
         try:
             params = parts[1].split("--")
         except:
             print(InvalidCommandError(command))
             return
-        # print(f'params: {params}')
-
+        
         json_request = "{"
 
+        isAddFile = False
         for i in range(1,len(params)):
             args = params[i].split(" ",1)
             if len(args)!=2:
@@ -105,9 +141,33 @@ class Client:
                 json_request+=f'"{args[0]}": "{args[1]}"'
                 json_request+="}"
             else:
-                json_request+=f'"{args[0]}": "{args[1]}",'
+                if args[0]=="file":
+                    if parts[0] == "add":
+                        isAddFile = True
+                    files=[x.strip() for x in args[1].split(",")]
+                    json_request+=f'"{args[0]}": "{len(files)}",'
+                else:
+                    json_request+=f'"{args[0]}": "{args[1]}",'
 
-        self.send_request(parts[0],json_request)
+        if isAddFile:
+            try:
+                # Crear y enviar la solicitud
+                request = {"command": parts[0], "payload": json_request}
+                self.client_socket.send(json.dumps(request).encode('utf-8'))
+            except Exception as e:
+                print(Error(e))
+                return
+            cmd_recv = self.client_socket.recv(1024).decode('utf-8')
+            if cmd_recv=="Command received":
+                self.send_files(files)
+            else:
+                print(cmd_recv)
+                return
+        else:
+            self.send_request(parts[0],json_request)
+            
+
+        
     
 
 if __name__ == "__main__":
