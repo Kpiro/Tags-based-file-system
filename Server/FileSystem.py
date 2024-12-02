@@ -11,6 +11,10 @@ class TagFileSystem:
     def __init__(self, db_path, storage_path):
         self.db_path = db_path
         self.storage_path = storage_path
+        if not os.path.exists(self.storage_path):
+            # Si no existe, la crea
+            os.makedirs(self.storage_path)
+            print(f'Folder "{self.storage_path}" created successfully')
         self.load_db()
 
     def load_db(self):

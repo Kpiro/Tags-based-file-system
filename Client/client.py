@@ -21,27 +21,27 @@ class Client:
 
         # Opción 1
         print(f"{Fore.BLUE}1. Add files with tags{Style.RESET_ALL}")
-        print(f'{Fore.RED}e.a.: tagger add --file archivo.txt --tags importante, proyecto{Style.RESET_ALL}')
+        print(f'{Fore.RED}e.a.: add --file D:/archivo.txt --tags importante, proyecto{Style.RESET_ALL}')
         print(f'{Fore.CYAN}--------------------------------------------------------------------{Style.RESET_ALL}')
 
         # Opción 2
         print(f"{Fore.BLUE}2. Delete files by tag query{Style.RESET_ALL}")
-        print(f'{Fore.RED}e.a.: tagger delete --query @casa and @Varadero or @LaHabana {Style.RESET_ALL}')
+        print(f'{Fore.RED}e.a.: delete --query @casa and @Varadero or @LaHabana {Style.RESET_ALL}')
         print(f'{Fore.CYAN}--------------------------------------------------------------------{Style.RESET_ALL}')
 
         # Opción 3
         print(f"{Fore.BLUE}3. List files by tag query{Style.RESET_ALL}")
-        print(f'{Fore.RED}e.a.: tagger list --query "size>10MB"{Style.RESET_ALL}')
+        print(f'{Fore.RED}e.a.: list --query @casa{Style.RESET_ALL}')
         print(f'{Fore.CYAN}--------------------------------------------------------------------{Style.RESET_ALL}')
 
         # Opción 4
         print(f"{Fore.BLUE}4. Add tags to files by tag query{Style.RESET_ALL}")
-        print(f'{Fore.RED}e.a.: tagger add --query "type=pdf" --tags "lectura"{Style.RESET_ALL}')
+        print(f'{Fore.RED}e.a.: add --query @Varadero --tags felicidad, vacaciones{Style.RESET_ALL}')
         print(f'{Fore.CYAN}--------------------------------------------------------------------{Style.RESET_ALL}')
 
         # Opción 5
         print(f"{Fore.BLUE}5. Delete tags from files by tag query{Style.RESET_ALL}")
-        print(f'{Fore.RED}e.a.: tagger delete --query "created<2020" --tags "duplicado"{Style.RESET_ALL}')
+        print(f'{Fore.RED}e.a.: delete --query @Varadero --tags felicidad{Style.RESET_ALL}')
         print(f'{Fore.CYAN}--------------------------------------------------------------------{Style.RESET_ALL}')
 
         # Opción 6
