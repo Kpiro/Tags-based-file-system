@@ -5,16 +5,18 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # Copia los archivos del directorio Client al contenedor
-COPY Client /app/Client
+COPY . /app/
 
 # Copia los archivos del directorio Utils al contenedor
-COPY Utils /app/Utils
+COPY ../Utils /app/Utils
 
 # Instala las dependencias necesarias
-RUN pip install --no-cache-dir -r /app/Client/requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Da permisos de ejecución al script startup.sh
-RUN chmod +x /app/Client/startup.sh
+# RUN chmod +x ./startup.sh
 
 # Especifica el comando para ejecutar el cliente
-CMD ["sh", "-c", "/app/Client/startup.sh && tail -f /dev/null"]
+# CMD ["sh", "-c", "/app/startup.sh && tail -f /dev/null"]
+# CMD ["python","-m", "Client.client"]
+CMD ["tail", "-f", "/dev/null"]
