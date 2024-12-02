@@ -8,7 +8,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends iproute2 && rm -rf /var/lib/apt/lists/*
 
 # Copiar los archivos necesarios
-COPY Server/Storage /app/Server/Storage
+# COPY Server/Storage /app/Server/Storage
 COPY Server/data.json /app/Server/data.json
 COPY Server/FileSystem.py /app/Server/FileSystem.py
 COPY Server/requirements.txt /app/requirements.txt

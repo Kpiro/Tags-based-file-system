@@ -13,6 +13,7 @@ class Client:
     def __init__(self):
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.client_socket.connect(("10.0.11.2", 5000))
+        self.FILE_PATH = "/app/Client/client_files"
 
     def show_menu(self):
         # Imprimir el menú con colores
@@ -66,8 +67,9 @@ class Client:
 
     def send_files(self,files):
 
-            for file_path in files:
+            for file in files:
 
+                file_path = os.path.join(self.FILE_PATH, file)
                 try:
                     file_size = os.path.getsize(file_path)
                 except FileNotFoundError:

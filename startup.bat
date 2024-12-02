@@ -57,10 +57,22 @@ if %ERRORLEVEL% neq 0 (
     exit /b 1
 )
 
-echo "Iniciando el cliente..."
-docker run -it --name client1 --cap-add NET_ADMIN --network clients client
+echo "Iniciando los clientes..."
+docker run -it -v /d:/app/Client/client_files --name client1 --cap-add NET_ADMIN --network clients client
 if %ERRORLEVEL% neq 0 (
-    echo Error starting client container.
+    echo Error starting client1 container.
+    exit /b 1
+)
+
+docker run -it -v /d:/app/Client/client_files --name client2 --cap-add NET_ADMIN --network clients client
+if %ERRORLEVEL% neq 0 (
+    echo Error starting client2 container.
+    exit /b 1
+)
+
+docker run -it -v /d:/app/Client/client_files --name client3 --cap-add NET_ADMIN --network clients client
+if %ERRORLEVEL% neq 0 (
+    echo Error starting client3 container.
     exit /b 1
 )
 pause
