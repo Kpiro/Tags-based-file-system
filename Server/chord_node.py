@@ -1,10 +1,11 @@
+import json
 import socket
 import threading
 from chord_node_reference import ChordNodeReference
 from utils_server import *
 from const import * 
 import time
-
+from data_base import DataBase
 class ChordNode:
     def __init__(self, ip: str, port: int, m: int = 7):
         self.id = calculate_hash(f'{ip}:{str(port)}', m)
@@ -16,8 +17,8 @@ class ChordNode:
         self.pred: ChordNodeReference = None  # Nodo predecesor
         self.m = m # Número de bits
         self.finger_table = [self.ref]*self.m  # Tabla de finger
-        self.files_data = {}  # Archivos de los que es responsable
-        self.tags_data = {} # Etiquetas de la que es responsable
+        self.my_files = DataBase(self.id,'my_files.json')
+        self.my_tags = DataBase(self.id,'my_tags.json')
         self.next = 0  # Finger table index to fix next
 
         # Start threads
@@ -226,12 +227,26 @@ class ChordNode:
         elif option == CHECK_NODE:
             data_resp = self.ref
 
+        elif option == ADD_TAGS_TO_FILE:
+            file_name = data[1]
+            tags_names = json.loads(data[2])
+            self.my_files.add_values_to_key(file_name,tags_names)
+            
+        elif option == ADD_FILES_TO_TAG:
+            tag_name = data[1]
+            files_names = json.loads(data[2])
+            self.my_tags.add_values_to_key(tag_name,files_names)
+
+        elif option == GET_FILES_FROM_TAG:
+            tag_name = data[1]
+            self.my_tags.get_values(tag_name)
+                
+
         # Send response
         if data_resp:
             response = f'{data_resp.id},{data_resp.ip}'.encode('utf-8')
             conn.sendall(response)
         conn.close()
-
 
     # Start server method to handle incoming requests
     def start_chord_server(self):
@@ -242,7 +257,7 @@ class ChordNode:
 
             while True:
                 conn, addr = s.accept()
-                data = conn.recv(1024).decode('utf-8').split(',')
+                data = process_data(conn.recv(1024).decode('utf-8'))
 
                 threading.Thread(target=self.request_handler, args=(conn, addr, data)).start()
                 

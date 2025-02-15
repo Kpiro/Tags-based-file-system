@@ -11,6 +11,13 @@ def inbetween(k: int, start: int, end: int) -> bool:
         return start < k <= end
     else:  # The interval wraps around 0
         return start < k or k <= end
+    
+def process_data(data: str):
+    start = data.find('[')
+    if start != -1:
+        return data[:start-1].split(',') + [data[start:]]
+
+    return data.split(',')
 
 class Response():
     def __init__(self, text):

@@ -1,4 +1,5 @@
 import socket
+from typing import List
 from const import *
 from utils_server import calculate_hash
 
@@ -58,8 +59,23 @@ class ChordNodeReference:
         response = self._send_data(LOOKUP, str(id)).decode('utf-8').split(',')
         return ChordNodeReference(response[1], self.port)
     
+    # ----------------- DATABASE -------------------------------------
+    def add_files_to_tag(self, tag: List[str], files_names: str):
+        """Appends files names to tag (works from any node)"""
+        response = self._send_data(ADD_FILES_TO_TAG, f"{tag},{files_names}").decode('utf-8')
+        return response
+    
+    def add_tags_to_file(self, file_name: List[str], tags_names: str):
+        """Appends tags names to file (works from any node)"""
+        response = self._send_data(ADD_TAGS_TO_FILE, f"{file_name},{tags_names}").decode('utf-8')
+        return response
+    
+    def get_files_from_tag(self, tag_name:str):
+        """Get files with the given tag"""
+        response = self._send_data(GET_FILES_FROM_TAG, f"{tag_name}").decode('utf-8')
+        return response
     def __str__(self) -> str:
-        return f'{self.id},{self.ip},{self.chord_port}'
+        return f'{self.id},{self.ip},{self.port}'
 
     def __repr__(self) -> str:
         return str(self)
