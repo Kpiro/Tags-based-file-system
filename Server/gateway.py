@@ -105,22 +105,11 @@ def delete_files():
         return jsonify({"status": "error", "message": "Parámetro inválido. Se requiere tag_query"}), 400
     
     tag_query = data["tag_query"]
-    result = service_delete(tag_query)
-    return jsonify(result), 200
-
-@app.route('/list', methods=['GET'])
-def list_files():
-    """
-    Endpoint para listar archivos:
-    Se espera recibir el parámetro de consulta (?tag_query=...)
-    """
-    tag_query = request.args.get("tag_query")
-    if not tag_query:
-        return jsonify({"status": "error", "message": "Se requiere el parámetro tag_query en la query string"}), 400
-
-    result = service_list(tag_query)
-    return jsonify(result), 200
-
+    files = read_service.retrieve_files(tag_query)
+    tags = read_service.retrieve_tags(files)
+    writen_service.delete_files(files)
+    writen_service.delete_files_from_tags(tags,files)
+    return jsonify('OK'), 200
 
 @app.route('/delete-tags', methods=['DELETE'])
 def delete_tags():
@@ -138,8 +127,23 @@ def delete_tags():
     
     tag_query = data["tag_query"]
     tag_list = data["tag_list"]
+    files = read_service.retrieve_files(tag_query)
+    writen_service.delete_tags_from_files(files,tag_list)
     result = service_delete_tags(tag_query, tag_list)
     return jsonify(result), 200
+
+@app.route('/list', methods=['GET'])
+def list_files():
+    """
+    Endpoint para listar archivos:
+    Se espera recibir el parámetro de consulta (?tag_query=...)
+    """
+    tag_query = request.args.get("tag_query")
+    if not tag_query:
+        return jsonify({"status": "error", "message": "Se requiere el parámetro tag_query en la query string"}), 400
+    files = read_service.retrieve_files(tag_query)
+    return jsonify(files), 200
+
 
 # -----------------------------
 # Ejecución de la aplicación

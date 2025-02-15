@@ -74,6 +74,26 @@ class ChordNodeReference:
         """Get files with the given tag"""
         response = self._send_data(GET_FILES_FROM_TAG, f"{tag_name}").decode('utf-8')
         return response
+    
+    def get_tags_from_file(self, file_name:str):
+        """Get files with the given tag"""
+        response = self._send_data(GET_TAGS_FROM_FILE, f"{file_name}").decode('utf-8')
+        return response
+    
+    def delete_file(self, file_name:str):
+        """Get files with the given tag"""
+        response = self._send_data(DELETE_FILE, f"{file_name}").decode('utf-8')
+        return response
+    
+    def delete_files_from_tag(self, tag_name:str):
+        """Get files with the given tag"""
+        response = self._send_data(DELETE_FILES_FROM_TAG, f"{tag_name}").decode('utf-8')
+        return response
+    
+    def delete_tags_from_file(self, file_name:str):
+        """Get files with the given tag"""
+        response = self._send_data(DELETE_TAGS_FROM_FILE, f"{file_name}").decode('utf-8')
+        return response
     def __str__(self) -> str:
         return f'{self.id},{self.ip},{self.port}'
 

@@ -24,6 +24,8 @@ class DataBase:
 
     def remove_values_from_key(self,key,values):
         self.data[key]-=values
+        if len(self.data[key])==0:
+            del self.data[key]
 
     def check_key(self,key):
         return self.data.get(key)
@@ -31,7 +33,7 @@ class DataBase:
     def get_values(self,key):
         return self.data[key]
     
-    def remove_key(self,key):
+    def delete_key(self,key):
         try:
             del self.data[key]
             return True

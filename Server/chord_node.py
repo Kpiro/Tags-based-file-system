@@ -240,7 +240,24 @@ class ChordNode:
         elif option == GET_FILES_FROM_TAG:
             tag_name = data[1]
             self.my_tags.get_values(tag_name)
+
+        elif option == DELETE_FILE:
+            file_name = data[1]
+            self.my_files.delete_key(file_name)
+
+        elif option == GET_TAGS_FROM_FILE:
+            file_name = data[1]
+            self.my_files.get_values(file_name)
                 
+        elif option == DELETE_FILES_FROM_TAG:
+            tag_name = data[1]
+            file_list = data[2]
+            self.my_tags.remove_values_from_key(tag_name,file_list)
+
+        elif option == DELETE_TAGS_FROM_FILE:
+            file_name = data[1]
+            tag_list = data[2]
+            self.my_files.remove_values_from_key(file_name,tag_list)
 
         # Send response
         if data_resp:
