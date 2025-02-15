@@ -6,10 +6,10 @@ from const import *
 
 class ChordNode:
     def __init__(self, ip: str, port: int, m: int = 7):
-        self.id = calculate_hash(f'{ip}:{str(port)}')
+        self.id = calculate_hash(f'{ip}:{str(port)}', m)
         self.ip = ip
         self.port = port
-        self.ref = ChordNodeReference(self.id, self.ip, self.port)
+        self.ref = ChordNodeReference(self.ip, self.port)
         self.succ: ChordNodeReference = None  # Nodo sucesor
         self.predpred: ChordNodeReference = None # Nodo sucesor del sucesor
         self.pred: ChordNodeReference = None  # Nodo predecesor
@@ -19,7 +19,7 @@ class ChordNode:
         self.tags_data = {} # Etiquetas de la que es responsable
 
         # Start threads
-        threading.Thread(target=self.start_server, daemon=True).start()  
+        threading.Thread(target=self.start_chord_server, daemon=True).start()  
 
     # Method to find the predecessor of a given id
     def find_pred(self, id: int) -> 'ChordNodeReference':
@@ -73,6 +73,7 @@ class ChordNode:
             self.pred = None
             self.predpred = None
 
+        print(f'Sucesor: {self.succ.ip}:{self.succ.port}')
         print("[*] end join")
 
     # Notify method to inform the node about another node
@@ -102,6 +103,7 @@ class ChordNode:
             data_resp = self.find_pred(target_id)
 
         elif option == LOOKUP:
+            print('aqui')
             target_id = int(data[1])
             data_resp = self.lookup(target_id)
 
@@ -130,7 +132,7 @@ class ChordNode:
 
 
     # Start server method to handle incoming requests
-    def start_server(self):
+    def start_chord_server(self):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             s.bind((self.ip, self.port))

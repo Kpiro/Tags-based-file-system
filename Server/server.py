@@ -3,27 +3,33 @@ import json
 import sys
 import threading
 from FileSystem import TagFileSystem
+from chord_node_reference import ChordNodeReference
 from utils_server import *
 from chord_node import ChordNode
 
 class Server:
 
-    def __init__(self,ip, port):
-        self.file_system = TagFileSystem("Server\data.json","Server\Storage")
-        self.storage_path = "Server\Storage"
+    def __init__(self,ip, port,known_node_ip=None, known_node_port=None):
+        self.file_system = TagFileSystem("Server/data.json","Server/Storage")
+        self.storage_path = "Server/Storage"
         self.node = ChordNode(ip,int(port))
 
+        threading.Thread(target=self.start_server, args=(ip,port)).start()
+        if known_node_ip and known_node_port:
+            threading.Thread(target=self.node.join, args=(ChordNodeReference(known_node_ip, known_node_port), )).start()
+        else:
+            threading.Thread(target=self.node.join).start()
+
+    def start_server(self, ip, port):
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        server.bind((ip, port))
-        server.listen(5)
+        server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        server.bind((ip, 8005))
+        server.listen(10)
         print(f"🚀 [SERVER] Running on {ip}:{port}")
-
-
         while True:
             client_socket, address = server.accept()
-            client_thread = threading.Thread(target=self.handle_client, args=(client_socket, address))
-            client_thread.start()
-    
+            threading.Thread(target=self.handle_client, args=(client_socket, address)).start()
+
     def handle_client(self,client_socket, address):
         print(f"🔌 [CONNECTION] Client connected from {address}")
         try:
@@ -84,10 +90,35 @@ class Server:
 
 if __name__ == "__main__":
     if len(sys.argv) < 3:
-        print("Uso: python server.py <IP> <PUERTO> [<NODO_CONOCIDO>]")
+        print("Uso: python server.py <IP> <PUERTO> -c [<NODO_CONOCIDO>]")
         sys.exit(1)
 
-    ip = sys.argv[1]
-    port = int(sys.argv[2])
-    # known_node = sys.argv[3] if len(sys.argv) > 3 else None
-    server = Server(ip, port)
+    # First node case
+    elif len(sys.argv) == 3:
+        ip = sys.argv[1]
+        port = int(sys.argv[2])
+        # Create node
+        server = Server(ip, port)
+        print(f"[IP]: {ip}")
+
+    elif sys.argv[3] != '-c' or len(sys.argv) < 6:
+        print("Uso: python server.py <IP> <PUERTO> -c [<NODO_CONOCIDO>]")
+        sys.exit(1)       
+
+    # Join node cases
+    elif len(sys.argv) == 6:
+        ip = sys.argv[1]
+        port = int(sys.argv[2])
+        known_node_ip, known_node_port = sys.argv[4], int(sys.argv[5]) if len(sys.argv) > 3 else None
+
+        server = Server(ip, port, known_node_ip, known_node_port)
+        print(f"[IP]: {ip}")
+
+    else:
+        raise Exception("Incorrect params")
+
+    
+
+
+    
+

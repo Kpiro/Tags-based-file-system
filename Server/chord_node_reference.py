@@ -1,9 +1,10 @@
 import socket
 from const import *
+from utils_server import calculate_hash
 
 class ChordNodeReference:
-    def __init__(self, id: int, ip: str, port: int = 8001):
-        self.id = id
+    def __init__(self, ip: str, port: int = 8001):
+        self.id = calculate_hash(f'{ip}:{port}')
         self.ip = ip
         self.port = port
 
@@ -11,6 +12,8 @@ class ChordNodeReference:
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.connect((self.ip, self.port))
+                print('op: ',op)
+                print('data: ',data)
                 s.sendall(f'{op},{data}'.encode('utf-8'))
                 return s.recv(1024)
         except Exception as e:
@@ -51,6 +54,9 @@ class ChordNodeReference:
         return False
     
     def lookup(self, id: int):
+        print('---------------------------------------------------------------')
         response = self._send_data(LOOKUP, str(id)).decode('utf-8').split(',')
+        print('---------------------------------------------------------------')
+        print('response:',response)
         return ChordNodeReference(response[1], self.port)
     
