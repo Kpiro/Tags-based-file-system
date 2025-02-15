@@ -3,6 +3,7 @@ import threading
 from chord_node_reference import ChordNodeReference
 from utils_server import *
 from const import * 
+import time
 
 class ChordNode:
     def __init__(self, ip: str, port: int, m: int = 7):
@@ -10,16 +11,20 @@ class ChordNode:
         self.ip = ip
         self.port = port
         self.ref = ChordNodeReference(self.ip, self.port)
-        self.succ: ChordNodeReference = None  # Nodo sucesor
+        self.succ: ChordNodeReference = self.ref  # Nodo sucesor
         self.predpred: ChordNodeReference = None # Nodo sucesor del sucesor
         self.pred: ChordNodeReference = None  # Nodo predecesor
         self.m = m # Número de bits
         self.finger_table = [ChordNodeReference]*self.m  # Tabla de finger
         self.files_data = {}  # Archivos de los que es responsable
         self.tags_data = {} # Etiquetas de la que es responsable
+        self.next = 0  # Finger table index to fix next
 
         # Start threads
+        threading.Thread(target=self.stabilize).start()
         threading.Thread(target=self.start_chord_server, daemon=True).start()  
+        
+        threading.Thread(target=self.fix_fingers).start()
 
     # Method to find the predecessor of a given id
     def find_pred(self, id: int) -> 'ChordNodeReference':
@@ -73,7 +78,9 @@ class ChordNode:
             self.pred = None
             self.predpred = None
 
-        print(f'Sucesor: {self.succ.ip}:{self.succ.port}')
+        print(f'Predecesor: ID -> {self.pred.id if self.pred != None else -1}, {self.pred.ip if self.pred != None else -1}:{self.pred.port if self.pred != None else -1}')
+        print(f'Me: {self.id}')
+        print(f'Sucesor: ID -> {self.succ.id}, {self.succ.ip}:{self.succ.port}')
         print("[*] end join")
 
     # Notify method to inform the node about another node
@@ -94,6 +101,61 @@ class ChordNode:
                     self.pred = node
         print(f"[*] end act...")
 
+    # Stabilize method to periodically verify and update the successor and predecessor
+    def stabilize(self):
+        while True:
+            if self.succ.id != self.id:
+                print('[⚖] Stabilizating...')
+
+                # Check successor is alive before stabilization
+                if self.succ.check_node():
+                    x = self.succ.pred
+
+                    if x.id != self.id:
+                        
+                        # Check is there is anyone between me and my successor
+                        if x and inbetween(x.id, self.id, self.succ.id):
+                            # Setearlo si no es el mismo
+                            if x.id != self.succ.id:
+                                self.succ = x
+                                # self.update_replication(False, True, False, False)
+                        
+                        # Notify mi successor
+                        self.succ.notify(self.ref)
+
+                        print(f'Predecesor: ID -> {self.pred.id if self.pred != None else -1}, {self.pred.ip if self.pred != None else -1}:{self.pred.port if self.pred != None else -1}')
+                        print(f'Me: {self.id}')
+                        print(f'Sucesor: ID -> {self.succ.id}, {self.succ.ip}:{self.succ.port}')
+                        print('[⚖] end stabilize...')
+                    else:
+                        print(f'Predecesor: ID -> {self.pred.id if self.pred != None else -1}, {self.pred.ip if self.pred != None else -1}:{self.pred.port if self.pred != None else -1}')
+                        print(f'Me: {self.id}')
+                        print(f'Sucesor: ID -> {self.succ.id}, {self.succ.ip}:{self.succ.port}')
+                        print("[⚖] 🟢 Already stable")
+
+                    if self.pred and self.pred.check_node():
+                        self.predpred = self.pred.pred
+
+                else:
+                    print("[⚖] I lost my successor, waiting for predecesor check...")
+
+            time.sleep(10)
+
+        # Fix fingers method to periodically update the finger table
+    def fix_fingers(self):
+        batch_size = 10
+        while True:
+            for _ in range(batch_size):
+                try:
+                    self.next += 1
+                    if self.next >= self.m:
+                        self.next = 0
+                    self.finger[self.next] = self.lookup((self.id + 2 ** self.next) % 2 ** self.m)
+                except Exception as e:
+                    # print(f"Error in fix_fingers: {e}")
+                    pass
+            time.sleep(5)
+
     def request_handler(self, conn: socket, addr, data: list):
         data_resp = None
         option = int(data[0])
@@ -103,7 +165,6 @@ class ChordNode:
             data_resp = self.find_pred(target_id)
 
         elif option == LOOKUP:
-            print('aqui')
             target_id = int(data[1])
             data_resp = self.lookup(target_id)
 
@@ -143,4 +204,5 @@ class ChordNode:
                 data = conn.recv(1024).decode('utf-8').split(',')
 
                 threading.Thread(target=self.request_handler, args=(conn, addr, data)).start()
+                
     
