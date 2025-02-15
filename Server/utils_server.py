@@ -1,4 +1,16 @@
 from colorama import Fore, Style
+import hashlib
+
+def calculate_hash(value : str, m):
+    """Calcula el hash de una clave usando SHA-1."""
+    return int(hashlib.sha1(value.encode('utf-8')).hexdigest(), 16) % (2**m)
+
+# Function to check if n id is between two other id's in chord ring
+def inbetween(k: int, start: int, end: int) -> bool:
+    if start < end:
+        return start < k <= end
+    else:  # The interval wraps around 0
+        return start < k or k <= end
 
 class Response():
     def __init__(self, text):

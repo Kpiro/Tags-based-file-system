@@ -15,6 +15,9 @@ COPY Server/requirements.txt /app/requirements.txt
 COPY Server/server.py /app/Server/server.py
 COPY Server/server.sh /usr/local/bin/server.sh
 COPY Server/utils_server.py /app/Server/utils_server.py
+COPY Server/chord_node.py /app/Server/chord_node.py
+COPY Server/chord_node_reference.py /app/Server/chord_node_reference.py
+COPY Server/const.py /app/Server/const.py
 
 # Instalar las dependencias necesarias
 RUN pip install --no-cache-dir -r requirements.txt

@@ -1,24 +1,22 @@
 import socket
 import json
-import re
+import sys
 import threading
 from FileSystem import TagFileSystem
 from utils_server import *
+from chord_node import ChordNode
 
 class Server:
 
-    def __init__(self,db_path, storage_path):
-        self.file_system = TagFileSystem(db_path,storage_path)
-        self.storage_path = storage_path
-
-    def start_server(self):
-        host = "0.0.0.0"
-        port = 5000
+    def __init__(self,ip, port):
+        self.file_system = TagFileSystem("Server\data.json","Server\Storage")
+        self.storage_path = "Server\Storage"
+        self.node = ChordNode(ip,int(port))
 
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        server.bind((host, port))
+        server.bind((ip, port))
         server.listen(5)
-        print(f"🚀 [SERVER] Running on {host}:{port}")
+        print(f"🚀 [SERVER] Running on {ip}:{port}")
 
 
         while True:
@@ -85,5 +83,11 @@ class Server:
 
 
 if __name__ == "__main__":
-    server = Server("Server\data.json", "Server\Storage")
-    server.start_server()
+    if len(sys.argv) < 3:
+        print("Uso: python server.py <IP> <PUERTO> [<NODO_CONOCIDO>]")
+        sys.exit(1)
+
+    ip = sys.argv[1]
+    port = int(sys.argv[2])
+    # known_node = sys.argv[3] if len(sys.argv) > 3 else None
+    server = Server(ip, port)
