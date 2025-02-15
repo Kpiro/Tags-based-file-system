@@ -15,16 +15,16 @@ class ChordNode:
         self.predpred: ChordNodeReference = None # Nodo sucesor del sucesor
         self.pred: ChordNodeReference = None  # Nodo predecesor
         self.m = m # Número de bits
-        self.finger_table = [ChordNodeReference]*self.m  # Tabla de finger
+        self.finger_table = [self.ref]*self.m  # Tabla de finger
         self.files_data = {}  # Archivos de los que es responsable
         self.tags_data = {} # Etiquetas de la que es responsable
         self.next = 0  # Finger table index to fix next
 
         # Start threads
-        threading.Thread(target=self.stabilize).start()
+        threading.Thread(target=self.stabilize, daemon=True).start()
+        threading.Thread(target=self.check_predecessor, daemon=True).start()
         threading.Thread(target=self.start_chord_server, daemon=True).start()  
-        
-        threading.Thread(target=self.fix_fingers).start()
+        threading.Thread(target=self.fix_fingers, daemon=True).start()
 
     # Method to find the predecessor of a given id
     def find_pred(self, id: int) -> 'ChordNodeReference':
@@ -48,6 +48,29 @@ class ChordNode:
         
         return self.succ
     
+    # Notify method to inform the node about another node
+    def notify(self, node: 'ChordNodeReference'):
+        print(f"[*] Node {node.ip} notified me, acting...")
+        if node.id == self.id:
+            pass
+        else:
+            if self.pred is None:
+                self.pred = node
+                self.predpred = node.pred
+                
+            # Check node still exists
+            elif node.check_node():
+                # Check if node is between my predecessor and me
+                if inbetween(node.id, self.pred.id, self.id):
+                    self.predpred = self.pred
+                    self.pred = node
+        print(f"[*] end act...")
+    
+    def reverse_notify(self, node: 'ChordNodeReference'):
+        print(f"[*] Node {node.id} reversed notified me, acting...")
+        self.succ = node
+        print(f"[*] end act...")
+
     def not_alone_notify(self, node: 'ChordNodeReference'):
         print(f"[*] Node {node.ip} say I am not alone now, acting..")
         self.succ = node
@@ -83,24 +106,6 @@ class ChordNode:
         print(f'Sucesor: ID -> {self.succ.id}, {self.succ.ip}:{self.succ.port}')
         print("[*] end join")
 
-    # Notify method to inform the node about another node
-    def notify(self, node: 'ChordNodeReference'):
-        print(f"[*] Node {node.ip} notified me, acting...")
-        if node.id == self.id:
-            pass
-        else:
-            if self.pred is None:
-                self.pred = node
-                self.predpred = node.pred
-                
-            # Check node still exists
-            elif node.check_node():
-                # Check if node is between my predecessor and me
-                if inbetween(node.id, self.pred.id, self.id):
-                    self.predpred = self.pred
-                    self.pred = node
-        print(f"[*] end act...")
-
     # Stabilize method to periodically verify and update the successor and predecessor
     def stabilize(self):
         while True:
@@ -123,11 +128,13 @@ class ChordNode:
                         # Notify mi successor
                         self.succ.notify(self.ref)
 
+                        print(f'PredPred: ID -> {self.predpred.id if self.predpred != None else -1}, {self.predpred.ip if self.predpred != None else -1}:{self.predpred.port if self.predpred != None else -1}')
                         print(f'Predecesor: ID -> {self.pred.id if self.pred != None else -1}, {self.pred.ip if self.pred != None else -1}:{self.pred.port if self.pred != None else -1}')
                         print(f'Me: {self.id}')
                         print(f'Sucesor: ID -> {self.succ.id}, {self.succ.ip}:{self.succ.port}')
                         print('[⚖] end stabilize...')
                     else:
+                        print(f'PredPred: ID -> {self.predpred.id if self.predpred != None else -1}, {self.predpred.ip if self.predpred != None else -1}:{self.predpred.port if self.predpred != None else -1}')
                         print(f'Predecesor: ID -> {self.pred.id if self.pred != None else -1}, {self.pred.ip if self.pred != None else -1}:{self.pred.port if self.pred != None else -1}')
                         print(f'Me: {self.id}')
                         print(f'Sucesor: ID -> {self.succ.id}, {self.succ.ip}:{self.succ.port}')
@@ -152,9 +159,39 @@ class ChordNode:
                         self.next = 0
                     self.finger[self.next] = self.lookup((self.id + 2 ** self.next) % 2 ** self.m)
                 except Exception as e:
-                    # print(f"Error in fix_fingers: {e}")
                     pass
             time.sleep(5)
+
+    # Check predecessor method to periodically verify if the predecessor is alive
+    def check_predecessor(self):
+        while True:
+            print("[*] Checking predecesor...")
+            try:
+                if self.pred and not self.pred.check_node():
+                    print("[-] Predecesor failed")
+
+                    if self.predpred.check_node():
+                        self.pred = self.predpred
+                        self.predpred = self.predpred.pred
+
+                    else:
+                        self.pred = self.find_pred(self.predpred.id)
+                        self.predpred = self.pred.pred
+
+                    if self.pred.id == self.id:
+                        self.succ = self.ref
+                        self.pred = None
+                        self.predpred = None
+                        continue
+                    
+                    self.pred.reverse_notify(self.ref)             
+
+            except Exception as e:
+                self.pred = None
+                self.succ = self.ref
+
+            time.sleep(10)
+            pass
 
     def request_handler(self, conn: socket, addr, data: list):
         data_resp = None
@@ -177,6 +214,10 @@ class ChordNode:
         elif option == NOTIFY:
             ip = data[2]
             self.notify(ChordNodeReference(ip, self.port))
+
+        elif option == REVERSE_NOTIFY:
+            ip = data[2]
+            self.reverse_notify(ChordNodeReference(ip, self.port))
 
         elif option == NOT_ALONE_NOTIFY:
             ip = data[2]

@@ -40,6 +40,9 @@ class ChordNodeReference:
     def notify(self, node: 'ChordNodeReference'):
         self._send_data(NOTIFY, f'{node.id},{node.ip}')
 
+    def reverse_notify(self, node: 'ChordNodeReference'):
+        self._send_data(REVERSE_NOTIFY, f'{node.id},{node.ip}')
+
     def not_alone_notify(self, node: 'ChordNodeReference'):
         self._send_data(NOT_ALONE_NOTIFY, f'{node.id},{node.ip}')
 
@@ -52,9 +55,12 @@ class ChordNodeReference:
         return False
     
     def lookup(self, id: int):
-        # print('---------------------------------------------------------------')
         response = self._send_data(LOOKUP, str(id)).decode('utf-8').split(',')
-        # print('---------------------------------------------------------------')
-        # print('response:',response)
         return ChordNodeReference(response[1], self.port)
+    
+    def __str__(self) -> str:
+        return f'{self.id},{self.ip},{self.chord_port}'
+
+    def __repr__(self) -> str:
+        return str(self)
     
