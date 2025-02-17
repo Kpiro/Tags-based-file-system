@@ -1,3 +1,4 @@
+import json
 import socket
 from typing import List
 from const import *
@@ -17,7 +18,8 @@ class ChordNodeReference:
                 return s.recv(1024)
         except Exception as e:
             print(f"Error sending data: {e}")
-            return b''
+            response = {'state':'Error','message':'🔌Problema de conexión'}
+            return response
         
     # Method to find the predecessor of a given id
     def find_predecessor(self, id: int) -> 'ChordNodeReference':
@@ -60,16 +62,53 @@ class ChordNodeReference:
         return ChordNodeReference(response[1], self.port)
     
     # ----------------- DATABASE -------------------------------------
-    def add_files_to_tag(self, tag: List[str], files_names: str):
+    def add_files_to_tag(self, tag: List[str], file_names: str):
         """Appends files names to tag (works from any node)"""
-        response = self._send_data(ADD_FILES_TO_TAG, f"{tag},{files_names}").decode('utf-8')
+        response = self._send_data(ADD_FILES_TO_TAG, f"{tag},{file_names}").decode('utf-8')
         return response
     
-    def add_tags_to_file(self, file_name: List[str], tags_names: str):
+    def add_tags_to_file(self, file_name: List[str], tag_names: str,len = None, content=None):
         """Appends tags names to file (works from any node)"""
-        response = self._send_data(ADD_TAGS_TO_FILE, f"{file_name},{tags_names}").decode('utf-8')
-        return response
-    
+        if len and content:
+            response = self._send_data(ADD_TAGS_TO_FILE_UPLOAD, f"{file_name},{len},{tag_names}").decode('utf-8')
+            if response == "OK":
+                try:
+                    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                        s.connect((self.ip, self.port))
+                        s.sendall(content)
+                        response = s.recv(1024)
+                except Exception as e:
+                    print(f"Error sending data: {e}")
+                    response = {'state':'Error','message':'🔌Problema de conexión'}
+            return response.decode('utf-8')
+        else:
+            response = self._send_data(ADD_TAGS_TO_FILE, f"{file_name},{tag_names}").decode('utf-8')
+            return response
+
+    def download_file(self,file_name):
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.connect((self.ip, self.port))
+                s.sendall(f'{DOWNLOAD_FILE},{file_name}'.encode('utf-8'))
+                json_recv = json.loads(s.recv(1024).decode('utf-8'))
+                if json_recv['state'] == 'OK':
+                    file_size = int(json_recv['file_size'])
+                    # Variable para almacenar el archivo en memoria
+                    file_data = bytearray()  # Usamos bytearray para eficiencia en concatenación
+                    # Recibir el archivo en bloques
+                    received_size = 0
+                    while received_size < file_size:
+                        data = s.recv(1024)  # Recibir 1024 bytes
+                        if not data:
+                            break
+                        file_data.extend(data)  # Agregar los datos a la variable
+                        received_size += len(data)
+                    return file_data,file_size
+                else:
+                    return {'state':'Error','message':'File {filename} could not be downloaded'}
+        except Exception as e:
+            return {'state':'Error','message':'🔌Connection Problem'}
+
     def get_files_from_tag(self, tag_name:str):
         """Get files with the given tag"""
         response = self._send_data(GET_FILES_FROM_TAG, f"{tag_name}").decode('utf-8')
@@ -94,6 +133,12 @@ class ChordNodeReference:
         """Get files with the given tag"""
         response = self._send_data(DELETE_TAGS_FROM_FILE, f"{file_name}").decode('utf-8')
         return response
+    
+    def get_all_files(self):
+        """Get all files that belong to a server"""
+        response = self._send_data(GET_ALL_FILES).decode('utf-8')
+        return response
+    
     def __str__(self) -> str:
         return f'{self.id},{self.ip},{self.port}'
 

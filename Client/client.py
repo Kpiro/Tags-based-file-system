@@ -4,6 +4,8 @@ import json
 from utils_client import *
 import os
 
+END_FILE = 30
+END_FILES = 31
 
 # Inicializa colorama
 init(autoreset=True)
@@ -13,7 +15,8 @@ class Client:
     def __init__(self):
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.client_socket.connect(("10.0.11.2", 5000))
-        self.FILE_PATH = "/app/Client/client_files"
+        self.storage_dir = "/app/Client/Storage"
+        os.makedirs(self.storage_dir,exist_ok=True)
 
     def show_menu(self):
         # Imprimir el menú con colores
@@ -22,7 +25,7 @@ class Client:
 
         # Opción 1
         print(f"{Fore.BLUE}1. Add files with tags{Style.RESET_ALL}")
-        print(f'{Fore.RED}e.a.: add --file D:/archivo.txt --tags importante, proyecto{Style.RESET_ALL}')
+        print(f'{Fore.RED}e.a.: add --files D:/archivo.txt --tags importante, proyecto{Style.RESET_ALL}')
         print(f'{Fore.CYAN}--------------------------------------------------------------------{Style.RESET_ALL}')
 
         # Opción 2
@@ -50,123 +53,128 @@ class Client:
         print(f'{Fore.RED}e.a.: exit{Style.RESET_ALL}')
         print(f'{Fore.CYAN}--------------------------------------------------------------------{Style.RESET_ALL}')
 
-
+    def send_request(self,request):
+        self.client_socket.send(request.encode('utf-8'))
+        return self.client_socket.recv(1024).decode('utf-8')
     
-    def send_request(self,command, payload):
+    def parse_command(self,request):
+        cmd =''
         try:
-            # Crear y enviar la solicitud
-            request = {"command": command, "payload": payload}
-            self.client_socket.send(json.dumps(request).encode('utf-8'))
-
-            # Recibir respuesta
-            response = self.client_socket.recv(1024).decode('utf-8')
-            print(response)
-
-        except Exception as e:
-            print(Error(e))
-
-    def send_files(self,files):
-
-            for file in files:
-
-                file_path = os.path.join(self.FILE_PATH, file)
-                try:
-                    file_size = os.path.getsize(file_path)
-                except FileNotFoundError:
-                    print(InvalidPathError(file_path))
-                    self.client_socket.send(str(InvalidPathError(file_path)).encode())
-                    return
-                if not os.path.isfile(file_path):
-                    self.client_socket.send(str(InvalidPathError(file_path)).encode())
-                    print(InvalidPathError(file_path))
-                    return
-                else:
-                    self.client_socket.send("OK".encode())
-                
-                # Enviar información del archivo
-                self.client_socket.send(f"{file_size}".encode())
-                response = self.client_socket.recv(1024).decode()
-                
-                if response != "OK":
-                    print(response)
-                    return
-                
-                file_name = os.path.basename(file_path)
-
-                self.client_socket.send(file_name.encode())
-                response = self.client_socket.recv(1024).decode()
-
-                if response != "OK":
-                    print(response)
-                    return
-                
-                # Enviar archivo
-                with open(file_path, "rb") as file:
-                    while chunk := file.read(1024):
-                        self.client_socket.send(chunk)
-            print(self.client_socket.recv(1024).decode())
-
-    def parse_command(self,command):
-
-        if command == "exit":
+            cmd_parts = request.split(" ", 1)
+            cmd = cmd_parts[0]
+        except:
+            cmd = request
+        
+        if cmd == "exit":
             self.client_socket.close()
             return
-        elif command == "show":
-            s=""
-            s+="{"
-            s+="}"
-            self.send_request("show",s)
+        elif cmd == "show":
+            self.client_socket.send(cmd.encode('utf-8'))
+            response = self.client_socket.recv(1024).decode('utf-8')
             return
 
         try:
-            parts = command.split(" ", 1)
+            params = cmd_parts[1].split("--")
         except:
             print(InvalidCommandError(command))
-            return
-
-        try:
-            params = parts[1].split("--")
-        except:
-            print(InvalidCommandError(command))
-            return
-        
-        json_request = "{"
-
-        isAddFile = False
-        for i in range(1,len(params)):
-            args = params[i].split(" ",1)
-            if len(args)!=2:
-                print(InvalidCommandError(command))
-                return
-
-            if i== len(params)-1:
-                json_request+=f'"{args[0]}": "{args[1]}"'
-                json_request+="}"
-            else:
-                if args[0]=="file":
-                    if parts[0] == "add":
-                        isAddFile = True
-                    files=[x.strip() for x in args[1].split(",")]
-                    json_request+=f'"{args[0]}": "{len(files)}",'
-                else:
-                    json_request+=f'"{args[0]}": "{args[1]}",'
-
-        if isAddFile:
-            try:
-                # Crear y enviar la solicitud
-                request = {"command": parts[0], "payload": json_request}
-                self.client_socket.send(json.dumps(request).encode('utf-8'))
-            except Exception as e:
-                print(Error(e))
-                return
-            cmd_recv = self.client_socket.recv(1024).decode('utf-8')
-            if cmd_recv=="Command received":
-                self.send_files(files)
-            else:
-                print(cmd_recv)
-                return
         else:
-            self.send_request(parts[0],json_request)
+            if cmd == "download":
+                response = self.send_request(cmd)
+                if response == 'OK':
+                    param_file = params[0].split(' ')
+                    if param_file[0]=='file':
+                        file_name = param_file[1]
+                        file_size = self.send_request(file_name)
+
+                        file_path = os.path.join(self.storage_dir,file_name)
+                        file_data = bytearray()
+                        received_size = 0
+                        while received_size < int(file_size):
+                            data = self.client_socket.recv(1024)  # Recibir 1024 bytes
+                            if not data:
+                                break
+                            file_data.extend(data)  # Agregar los datos a la variable
+                            received_size += len(data)
+                        with open(file_path, "wb") as dest_file:
+                            dest_file.write(file_data)
+                            print('File {file_name} downloaded succesfully')
+                else:
+                    print('Invalid')
+
+            elif cmd == "list":
+                param_query= params[0].split(' ')
+                if param_query[0]=='query':
+                    query = param_query[1]
+                    response = self.send_request(cmd)
+                    if response == 'OK':
+                        response = self.send_request(query)
+            elif cmd == "delete":
+                param_query = params[0].split(' ')
+                if param_query[0] == 'query':
+                    query = param_query[1]
+                else:
+                    print('Invalid cmd')
+                try: 
+                    param_tags = params[1].split(' ')
+                    if param_tags[0]=='tags':
+                        tags = param_tags[1]
+                    else:
+                        print('Invalid cmd')
+                except:
+                    response = self.send_request('delete-files')
+                    if response == 'OK':
+                        response = self.send_request(query)
+                else:
+                    response = self.send_request('delete-tags')
+                    if response == 'OK':
+                        response = self.send_request(query)
+                        if response == 'OK':
+                            response = self.send_request(tags)
+
+            elif cmd == "add":
+                param_tags = params[1].split(' ')
+                if param_tags[0] == 'query':
+                    tags = param_tags[1]
+                else:
+                    print('Invalid cmd')
+                    return
+                param_0 = params[0].split(' ')
+                if param_0[0]=='query':
+                    query = param_0[1]
+                    response = self.send_request('add-tags')
+                    if response == 'OK':
+                        response = self.send_request(query)
+                        if response == 'OK':
+                            response = self.send_request(tags)
+                elif param_0[0]=='files':
+                    files = param_0[1]
+                    response = self.send_request('add-files')
+                    if response == "OK":
+                        file_path_list = files.split(',')
+                        for file_path in file_path_list:
+                            file_name = os.path.basename(file_path)
+                            file_size = os.path.getsize(file_path)
+                            response = self.send_request(f'{file_name},{file_size}')
+                            if response == "OK":
+                                with open(file_path, "rb") as source_file:
+                                    self.client_socket.sendall(source_file.read())
+                                    response = self.client_socket.recv(1024)
+                                    if response != 'OK':
+                                        print('Invalid')
+                                        return
+                            else:
+                                print('Invalid')
+                                return
+                        response = self.send_request('end_file')
+                        if response == 'OK':
+                            response = self.send_request(tags)
+                            print(response)
+                            return
+                    else:
+                        print('Invalid')
+                        return
+
+
             
 
         

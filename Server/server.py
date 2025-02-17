@@ -6,13 +6,14 @@ from FileSystem import TagFileSystem
 from chord_node_reference import ChordNodeReference
 from utils_server import *
 from chord_node import ChordNode
+from gateway_node import GatewayNode
 
 class Server:
 
     def __init__(self,ip, port,known_node_ip=None, known_node_port=None):
         self.file_system = TagFileSystem("Server/data.json","Server/Storage")
         self.storage_path = "Server/Storage"
-        self.node = ChordNode(ip,int(port))
+        self.node = GatewayNode(ip,int(port))
 
         threading.Thread(target=self.start_server, args=(ip,port)).start()
         if known_node_ip and known_node_port:
@@ -35,55 +36,102 @@ class Server:
         try:
             while True:
                 try:
-                    data = client_socket.recv(1024).decode('utf-8')
+                    request = client_socket.recv(1024).decode('utf-8')
                 except:
                     self.file_system.save_db()
                     client_socket.close()
                     print(f"🔌🚫 [DISCONNECT] Client disconnected from {address}")
                     return
-                if not data:
-                    self.file_system.save_db()
-                    break
-                request = json.loads(data)
-                command = request.get("command")
-                payload = request.get("payload", {})
-                response = self.process_request(command, json.loads(payload), client_socket)
+                # if not request:
+                #     self.file_system.save_db()
+                #     break
+                response = self.process_request(request, client_socket)
                 if response != None:
-                    client_socket.send(response.encode('utf-8'))
+                    try:
+                        client_socket.sendall(response.encode('utf-8'))
+                    except:
+                        client_socket.sendall(response)
                 
         except Exception as e:
-            print(Error(e))
+            print(e)
             client_socket.send(json.dumps({"error": str(e)}).encode('utf-8'))
-            self.file_system.save_db()
             client_socket.close()
             print(f"🔌🚫 [DISCONNECT] Client disconnected from {address}")
             
 
-    def process_request(self,command, payload, client_socket):
-
-        if command == "show":
-            return str(StorageFiles(self.file_system.files))
-
-        elif command == "delete":   
-            if payload.get('query'):
-                if payload.get("tags"):
-                    return self.file_system.delete_tags(tag_query=payload["query"],tag_list=[x.strip() for x in payload["tags"].split(",")])
-                return self.file_system.delete(tag_query=payload["query"])
+    def process_request(self,request, client_socket):
+        if request == 'show':
+            client_socket.send('OK'.encode('utf-8'))
+            return self.node.show()
+        elif request == 'add-tags':
+            client_socket.send('OK'.encode('utf-8'))
+            tag_query = client_socket.recv(1024).decode('utf-8').split(',')
+            client_socket.send('OK'.encode('utf-8'))
+            tag_list = client_socket.recv(1024).decode('utf-8').split(',')
+            return self.node.add_files(tag_query,tag_list)
+        elif request == 'add-files':
+            client_socket.send('OK'.encode('utf-8'))
+            file_list = []
+            len_list = []
+            content_list = []
+            file_name =''
+            while True:
+                file_info = client_socket.recv(1024).decode('utf-8')
+                if file_info == 'end_file':
+                    break
                 
-            
-        elif command == "list":
-            if payload.get('query'):
-                return self.file_system.list(tag_query=payload["query"])
-        elif command == "add":
-            if payload.get("tags"):
-                if payload.get("file"):
-                    client_socket.send("Command received".encode('utf-8'))
-                    return self.file_system.add(num_files=int(payload["file"]),tag_list=[x.strip() for x in payload["tags"].split(",")], client_socket=client_socket)
-                elif payload.get("query"):
-                    return self.file_system.add_tags(tag_query=payload["query"],tag_list=[x.strip() for x in payload["tags"].split(",")])
-        else:
-            return str(InvalidCommandError(command))
+                file_info = file_info.split(',')
+                file_name = file_info[0]
+                file_size = file_info[1]
+                file_list.append(file_name)
+                len_list.append(file_size)
+                # Variable para almacenar el archivo en memoria
+                file_data = bytearray()  # Usamos bytearray para eficiencia en concatenación
 
+                # Recibir el archivo en bloques
+                received_size = 0
+                while received_size < int(file_size):
+                    data = client_socket.recv(1024)  # Recibir 1024 bytes
+                    if not data:
+                        break
+                    file_data.extend(data)  # Agregar los datos a la variable
+                    received_size += len(data)
+                content_list.append(file_data)
+
+                client_socket.send('OK'.encode('utf-8'))
+
+            tag_list = client_socket.recv(1024).decode('utf-8').split('')
+            return self.node.add_files(file_list,tag_list,len_list,content_list)
+
+
+        elif request == 'delete-tags':
+            client_socket.send('OK'.encode('utf-8'))
+            tag_query = client_socket.recv(1024).decode('utf-8').split(',')
+            client_socket.send('OK'.encode('utf-8'))
+            tag_list = client_socket.recv(1024).decode('utf-8').split(',')
+            return self.node.delete_tags(tag_query,tag_list)
+        elif request == 'delete-files':
+            client_socket.send('OK'.encode('utf-8'))
+            tag_query = client_socket.recv(1024).decode('utf-8').split(',')
+            return self.node.delete_files(tag_query)
+        elif request == 'list':
+            client_socket.send('OK'.encode('utf-8'))
+            tag_query = client_socket.recv(1024).decode('utf-8').split(',')
+            return self.node.list_files(tag_query)
+        elif request == 'download':
+            client_socket.send('OK'.encode('utf-8'))
+            file_name = client_socket.recv(1024).decode('utf-8')
+            file_content,file_size = self.node.download_file(file_name)
+            client_socket.sendall(file_size).encode('utf-8')
+            response = client_socket.recv(1024).decode('utf-8')
+            if response != 'OK':
+                return 'Error'
+            return file_content
+
+
+
+        
+        
 
 
 
