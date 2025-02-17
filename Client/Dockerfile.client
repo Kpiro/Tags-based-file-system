@@ -19,5 +19,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Asegurarse de que el script sea ejecutable
 RUN chmod +x /usr/local/bin/client.sh
 
-# Ejecutar el script de configuración y luego el cliente
-ENTRYPOINT ["/bin/bash", "-c", "/usr/local/bin/client.sh && python /app/Client/client.py"]
+# Mantener el contenedor en ejecución sin ejecutar el script automáticamente.
+CMD ["tail", "-f", "/dev/null"]
