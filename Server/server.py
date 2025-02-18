@@ -1,6 +1,8 @@
+import ipaddress
 import socket
 import json
 import sys
+import struct
 import threading
 from FileSystem import TagFileSystem
 from chord_node_reference import ChordNodeReference
@@ -10,21 +12,56 @@ from gateway_node import GatewayNode
 
 class Server:
 
-    def __init__(self,ip, port,known_node_ip=None, known_node_port=None):
+    def __init__(self,ip, port = DEFAULT_SERVER_PORT, known_node_ip=None):
+        self.ip = ip
         self.file_system = TagFileSystem("Server/data.json","Server/Storage")
         self.storage_path = "Server/Storage"
         self.node = GatewayNode(ip,int(port))
 
+        # Iniciar hilo para responder descubrimientos multicast (para conexión cliente–servidor)
+        threading.Thread(target=self.multicast_listener, daemon=True).start()
+        # Iniciar el servidor TCP para clientes (por ejemplo, en puerto DEFAULT_SERVER_PORT, ej. 8005)
         threading.Thread(target=self.start_server, args=(ip,port)).start()
-        if known_node_ip and known_node_port:
-            threading.Thread(target=self.node.join, args=(ChordNodeReference(known_node_ip, known_node_port), )).start()
+        if known_node_ip:
+            threading.Thread(target=self.node.join, args=(ChordNodeReference(known_node_ip), )).start()
         else:
             threading.Thread(target=self.node.join).start()
 
-    def start_server(self, ip, port):
+    def multicast_listener(self):
+        """
+        Se une al grupo multicast para escuchar peticiones de descubrimiento de clientes.
+        Cuando recibe "DISCOVER_SERVER", responde con la IP y puerto (del servidor TCP de clientes).
+        """
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            sock.bind(('', MCAST_PORT))
+        except Exception as e:
+            print(f"Error al enlazar multicast listener en server: {e}")
+            return
+        
+        # Unirse al grupo multicast
+        mreq = struct.pack("4sl", socket.inet_aton(MCAST_GRP), socket.INADDR_ANY)
+        sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
+
+        print(f"[*] Server multicast listener iniciado en {MCAST_GRP}:{MCAST_PORT}")
+        while True:
+            try:
+                data, addr = sock.recvfrom(1024)
+                print(f'Recibiendo data multicast {data}')
+                msg = data.decode('utf-8').strip()
+                if msg == "DISCOVER_SERVER":
+                    # Responde con la IP del servidor y el puerto de conexión a clientes (por ejemplo, DEFAULT_SERVER_PORT)
+                    response = f"{self.ip},{DEFAULT_SERVER_PORT}"
+                    print(f"[*] Recibí DISCOVER_SERVER de {addr}. Respondiendo con {response}")
+                    sock.sendto(response.encode('utf-8'), addr)
+            except Exception as e:
+                print(f"Error en multicast listener del server: {e}")
+
+    def start_server(self, ip, port = DEFAULT_SERVER_PORT):
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        server.bind((ip, 8005))
+        server.bind((ip, port))
         server.listen(10)
         print(f"🚀 [SERVER] Running on {ip}:{port}")
         while True:
@@ -137,30 +174,31 @@ class Server:
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 3:
-        print("Uso: python server.py <IP> <PUERTO> -c [<NODO_CONOCIDO>]")
-        sys.exit(1)
+    # Get ip from current server
+    ip = socket.gethostbyname(socket.gethostname()) 
 
     # First node case
-    elif len(sys.argv) == 3:
-        ip = sys.argv[1]
-        port = int(sys.argv[2])
+    if len(sys.argv) == 1:
+
         # Create node
-        server = Server(ip, port)
-        print(f"[IP]: {ip}")
+        server = Server(ip)
+        print(f"[IP]: {ip}")     
 
-    elif sys.argv[3] != '-c' or len(sys.argv) < 6:
-        print("Uso: python server.py <IP> <PUERTO> -c [<NODO_CONOCIDO>]")
-        sys.exit(1)       
+    # Join node cases using especific ip addres
+    elif len(sys.argv) == 3:
+        flag = sys.argv[1]
 
-    # Join node cases
-    elif len(sys.argv) == 6:
-        ip = sys.argv[1]
-        port = int(sys.argv[2])
-        known_node_ip, known_node_port = sys.argv[4], int(sys.argv[5]) if len(sys.argv) > 3 else None
+        if flag == '-c':
+            target_ip = sys.argv[2]
+            try:
+                ipaddress.ip_address(target_ip)
+            except:
+                raise Exception(f"{target_ip} cannot be interpreted as an IP address")
 
-        server = Server(ip, port, known_node_ip, known_node_port)
-        print(f"[IP]: {ip}")
+            server = Server(ip, known_node_ip=target_ip)
+            print(f"[IP]: {ip}")
+        else:
+            raise Exception(f"Missing flag: {flag} does not exist")
 
     else:
         raise Exception("Incorrect params")

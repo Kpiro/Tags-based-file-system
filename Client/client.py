@@ -1,3 +1,4 @@
+import struct
 from colorama import Fore, Back, Style, init
 import socket
 import json
@@ -6,6 +7,9 @@ import os
 
 END_FILE = 30
 END_FILES = 31
+# Configuración del grupo multicast
+MCAST_GRP = '224.0.0.1'
+MCAST_PORT = 10000
 
 # Inicializa colorama
 init(autoreset=True)
@@ -13,10 +17,44 @@ init(autoreset=True)
 class Client: 
 
     def __init__(self):
-        self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.client_socket.connect(("10.0.11.2", 5000))
         self.storage_dir = "/app/Client/Storage"
         os.makedirs(self.storage_dir,exist_ok=True)
+        # Descubrir el servidor mediante multicast
+        server_info = self.discover_server()
+        if server_info is None:
+            print("No se encontró ningún servidor mediante multicast.")
+            exit(1)
+        else:
+            print(f"Conectando al servidor en {server_info[0]}:{server_info[1]}")
+        self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.client_socket.connect((server_info[0], server_info[1]))
+
+    def discover_server(self):
+        """
+        Envía un mensaje de descubrimiento multicast para encontrar el servidor.
+        Retorna una tupla (ip, port) si se recibe respuesta o None si no.
+        """
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+            sock.settimeout(20)
+            ttl = struct.pack('b', 1)
+            sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, ttl)
+            
+            msg = "DISCOVER_SERVER"
+            print("Enviando mensaje de descubrimiento multicast...")
+            sock.sendto(msg.encode('utf-8'), (MCAST_GRP, MCAST_PORT))
+            
+            data, addr = sock.recvfrom(1024)
+            print(f'Data {data}')
+            response = data.decode('utf-8').strip()
+            ip, port = response.split(',')
+            return ip, int(port)
+        except socket.timeout:
+            print("No se recibió respuesta del descubrimiento multicast.")
+            return None
+        except Exception as e:
+            print("Error en multicast discovery:", e)
+            return None
 
     def show_menu(self):
         # Imprimir el menú con colores
