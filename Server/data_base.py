@@ -4,7 +4,7 @@ main_dir = "/app/Server/Storage"
 from utils_server import auto_save
 class DataBase:
     def __init__(self,node_id,name) -> None:
-        self.server_dir = os.path.join(main_dir,node_id)
+        self.server_dir = os.path.join(main_dir,str(node_id))
         self.json_dir = os.path.join(self.server_dir,'Jsons')
         self.json_path = os.path.join(self.json_dir,name)
         self.create_dir()

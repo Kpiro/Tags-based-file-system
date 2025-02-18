@@ -14,7 +14,6 @@ COPY Server/chord_node.py /app/Server/chord_node.py
 COPY Server/const.py /app/Server/const.py
 COPY Server/data_base.py /app/Server/data_base.py
 COPY Server/data.json /app/Server/data.json
-COPY Server/FileSystem.py /app/Server/FileSystem.py
 COPY Server/gateway_node.py /app/Server/gateway_node.py
 COPY Server/requirements.txt /app/requirements.txt
 COPY Server/server.py /app/Server/server.py

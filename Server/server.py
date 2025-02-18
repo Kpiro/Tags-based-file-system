@@ -4,7 +4,6 @@ import json
 import sys
 import struct
 import threading
-from FileSystem import TagFileSystem
 from chord_node_reference import ChordNodeReference
 from utils_server import *
 from chord_node import ChordNode
@@ -14,9 +13,8 @@ class Server:
 
     def __init__(self,ip, port = DEFAULT_SERVER_PORT, known_node_ip=None):
         self.ip = ip
-        self.file_system = TagFileSystem("Server/data.json","Server/Storage")
         self.storage_path = "Server/Storage"
-        self.node = GatewayNode(ip,int(port))
+        self.node = GatewayNode(ip)
 
         # Iniciar hilo para responder descubrimientos multicast (para conexión cliente–servidor)
         threading.Thread(target=self.multicast_listener, daemon=True).start()
@@ -75,7 +73,6 @@ class Server:
                 try:
                     request = client_socket.recv(1024).decode('utf-8')
                 except:
-                    self.file_system.save_db()
                     client_socket.close()
                     print(f"🔌🚫 [DISCONNECT] Client disconnected from {address}")
                     return

@@ -1,6 +1,4 @@
 from chord_node import ChordNode
-from flask import Flask, request, jsonify
-app = Flask(__name__)
 from chord_node_reference import ChordNodeReference
 from services import *
 from utils_server import * 
@@ -11,7 +9,7 @@ class GatewayNode(ChordNode):
     # En un escenario real, estas funciones harían llamadas HTTP u otra
     # forma de comunicación con los microservicios correspondientes.
     # -----------------------------
-    def __init__(self,ip,port):
+    def __init__(self,ip,port = DEFAULT_NODE_PORT):
         super().__init__(ip,port)
         # chord_ring: ChordNodeReference = None
         self.read_service = ReadService(self.ref)
@@ -107,14 +105,6 @@ class GatewayNode(ChordNode):
             return ErrorMSG('Files could not be listed')
         else:
             return SuccesMSG('Files listed successfully')+'\n'+FilesMSG(files)
-        
-    def upload_file(self,file_name,file_content):
-        try:
-            self.written_service.upload_file(file_name,file_content)
-        except Exception:
-            return ErrorMSG('File {file_name} could not be upload')
-        else:
-            return SuccesMSG('File {file_name} upload succesffully')
     
     def download_file(self,file_name):
         try:
@@ -125,27 +115,11 @@ class GatewayNode(ChordNode):
             return file_content,file_size
 
     def show(self):
-        """
-        Endpoint para listar archivos:
-        """
-        tag_query = self.request.get("tag_query")
-        if not tag_query:
-            return jsonify({"status": "error", "message": "Se requiere el parámetro tag_query en la query string"}), 400
         try:
-            files,tags = self.read_service.retrieve_all_files(tag_query)
+            files,tags = self.read_service.retrieve_all_files()
         except Exception:
             return ErrorMSG('Files could not be listed')
         else:
             return SuccesMSG('Files listed successfully')+'\n'+FilesMSG(file_list=files,tag_list=tags)
 
-
-
-
-    # -----------------------------
-    # Ejecución de la aplicación
-    # -----------------------------
-
-    if __name__ == '__main__':
-        # Ejecutamos el gateway en el puerto 5000 en modo debug
-        app.run(debug=True, port=5000)
         

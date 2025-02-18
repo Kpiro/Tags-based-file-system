@@ -68,10 +68,6 @@ class ReadService(Service):
 class WritenService(Service):
     def __init__(self,node):
         super().__init__(node)
-    
-
-    # def upload_files(self,file_name,file_content):
-    #     :
 
     def add_tags_to_files(self,file_list,tag_list,len_list=None, content_list=None):
         file_owners = self.find_owner(file_list)

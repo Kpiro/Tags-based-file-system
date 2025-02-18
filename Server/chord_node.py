@@ -8,7 +8,7 @@ import time
 from data_base import FileDataBase,TagDataBase
 import base64
 class ChordNode:
-    def __init__(self, ip: str, port: int, m: int = 7):
+    def __init__(self, ip: str, port: int = DEFAULT_NODE_PORT, m: int = 7):
         self.id = calculate_hash(f'{ip}:{str(port)}', m)
         self.ip = ip
         self.port = port
