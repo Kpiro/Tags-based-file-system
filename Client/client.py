@@ -20,14 +20,14 @@ class Client:
         self.storage_dir = "/app/Client/Storage"
         os.makedirs(self.storage_dir,exist_ok=True)
         # Descubrir el servidor mediante multicast
-        # server_info = self.discover_server()
-        # if server_info is None:
-        #     print("No se encontró ningún servidor mediante multicast.")
-        #     exit(1)
-        # else:
-        #     print(f"Conectando al servidor en {server_info[0]}:{server_info[1]}")
+        server_info = self.discover_server()
+        if server_info is None:
+            print("No se encontró ningún servidor mediante multicast.")
+            exit(1)
+        else:
+            print(f"Conectando al servidor en {server_info[0]}:{server_info[1]}")
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.client_socket.connect(('10.0.11.2', 8005))
+        self.client_socket.connect((server_info[0], server_info[1]))
 
     def discover_server(self):
         """
@@ -170,13 +170,14 @@ class Client:
                             response = self.send_request(tags)
 
             elif cmd == "add":
-                param_tags = params[1].split(' ')
-                if param_tags[0] == 'query':
+                param_tags = params[2].split(' ')
+                print(param_tags)
+                if param_tags[0] == 'tags':
                     tags = param_tags[1]
                 else:
                     print('Invalid cmd')
                     return
-                param_0 = params[0].split(' ')
+                param_0 = params[1].split(' ')
                 if param_0[0]=='query':
                     query = param_0[1]
                     response = self.send_request('add-tags')

@@ -3,6 +3,7 @@
 set -e  # Habilita la detención en caso de error
 
 echo "Eliminando contenedores existentes si existen..."
+docker rm -f mcproxy 2>/dev/null || true
 docker rm -f router 2>/dev/null || true
 docker rm -f server1 2>/dev/null || true
 docker rm -f server2 2>/dev/null || true
@@ -27,10 +28,10 @@ docker network create clients --subnet 10.0.10.0/24 || { echo "Error creating cl
 docker network create servers --subnet 10.0.11.0/24 || { echo "Error creating servers network." ; exit 1; }
 
 echo "Construyendo la imagen base del router..."
-docker build -t router:base -f Router/router_base.Dockerfile . || { echo "Error building router base image." ; exit 1; }
+docker build -t router:base -f Router/router_base.Dockerfile Router/ || { echo "Error building router base image." ; exit 1; }
 
 echo "Construyendo la imagen del router..."
-docker build -t router-image -f Router/router.Dockerfile . || { echo "Error building router image." ; exit 1; }
+docker build -t router-image -f Router/router.Dockerfile Router/ || { echo "Error building router image." ; exit 1; }
 
 echo "Creando y configurando el router..."
 docker run -d --rm --name router --cap-add NET_ADMIN -e PYTHONUNBUFFERED=1 router-image || { echo "Error creating and configuring router." ; exit 1; }

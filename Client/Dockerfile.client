@@ -2,19 +2,19 @@
 FROM python:3.11-slim
 
 # Instalar herramientas de red necesarias
-RUN apt-get update && apt-get install -y --no-install-recommends iproute2 && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y iproute2
+# Instalar las dependencias necesarias
 
 # Crear directorio de trabajo
 WORKDIR /app
+COPY Client/requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copiar los archivos necesarios
 COPY Client/client.py /app/Client/client.py
 COPY Client/client.sh /usr/local/bin/client.sh
-COPY Client/requirements.txt /app/requirements.txt
 COPY Client/utils_client.py /app/Client/utils_client.py
 
-# Instalar las dependencias necesarias
-RUN pip install --no-cache-dir -r requirements.txt
 
 # Asegurarse de que el script sea ejecutable
 RUN chmod +x /usr/local/bin/client.sh
