@@ -17,17 +17,18 @@ init(autoreset=True)
 class Client: 
 
     def __init__(self):
-        self.storage_dir = "/app/Client/Storage"
+        # self.storage_dir = "/app/Client/Storage"
+        self.storage_dir = "./Storage"
         os.makedirs(self.storage_dir,exist_ok=True)
         # Descubrir el servidor mediante multicast
-        server_info = self.discover_server()
-        if server_info is None:
-            print("No se encontró ningún servidor mediante multicast.")
-            exit(1)
-        else:
-            print(f"Conectando al servidor en {server_info[0]}:{server_info[1]}")
+        # server_info = self.discover_server()
+        # if server_info is None:
+        #     print("No se encontró ningún servidor mediante multicast.")
+        #     exit(1)
+        # else:
+        #     print(f"Conectando al servidor en {server_info[0]}:{server_info[1]}")
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.client_socket.connect((server_info[0], server_info[1]))
+        self.client_socket.connect(('127.0.0.1', 8005))
 
     def discover_server(self):
         """
@@ -99,6 +100,7 @@ class Client:
         cmd =''
         try:
             cmd_parts = request.split(" ", 1)
+            print('cmd_parts: ',cmd_parts)
             cmd = cmd_parts[0]
         except:
             cmd = request
@@ -112,14 +114,15 @@ class Client:
             return
 
         try:
-            params = cmd_parts[1].split("--")
+            params = [param.strip() for param in cmd_parts[1].split("--")]
+            print('params: ',params)
         except:
             print(InvalidCommandError(command))
         else:
             if cmd == "download":
                 response = self.send_request(cmd)
                 if response == 'OK':
-                    param_file = params[0].split(' ')
+                    param_file = params[1].split(' ',1)
                     if param_file[0]=='file':
                         file_name = param_file[1]
                         file_size = self.send_request(file_name)
@@ -140,20 +143,20 @@ class Client:
                     print('Invalid')
 
             elif cmd == "list":
-                param_query= params[0].split(' ')
+                param_query= params[1].split(' ',1)
                 if param_query[0]=='query':
                     query = param_query[1]
                     response = self.send_request(cmd)
                     if response == 'OK':
                         response = self.send_request(query)
             elif cmd == "delete":
-                param_query = params[0].split(' ')
+                param_query = params[1].split(' ',1)
                 if param_query[0] == 'query':
                     query = param_query[1]
                 else:
                     print('Invalid cmd')
                 try: 
-                    param_tags = params[1].split(' ')
+                    param_tags = params[2].split(' ',1)
                     if param_tags[0]=='tags':
                         tags = param_tags[1]
                     else:
@@ -170,14 +173,14 @@ class Client:
                             response = self.send_request(tags)
 
             elif cmd == "add":
-                param_tags = params[2].split(' ')
+                param_tags = params[2].split(' ',1)
                 print(param_tags)
                 if param_tags[0] == 'tags':
                     tags = param_tags[1]
                 else:
                     print('Invalid cmd')
                     return
-                param_0 = params[1].split(' ')
+                param_0 = params[1].split(' ',1)
                 if param_0[0]=='query':
                     query = param_0[1]
                     response = self.send_request('add-tags')
@@ -187,17 +190,23 @@ class Client:
                             response = self.send_request(tags)
                 elif param_0[0]=='files':
                     files = param_0[1]
+                    print('va a mandar comando')
                     response = self.send_request('add-files')
+                    print('mando comando')
+                    print(response)
                     if response == "OK":
-                        file_path_list = files.split(',')
+                        file_path_list = [file_path.strip() for file_path in files.split(',')]
                         for file_path in file_path_list:
                             file_name = os.path.basename(file_path)
                             file_size = os.path.getsize(file_path)
+                            print(f'file_info: {file_name} -- {file_size}' )
                             response = self.send_request(f'{file_name},{file_size}')
+                            print(response)
                             if response == "OK":
                                 with open(file_path, "rb") as source_file:
                                     self.client_socket.sendall(source_file.read())
-                                    response = self.client_socket.recv(1024)
+                                    response = self.client_socket.recv(1024).decode('utf-8')
+                                    print(response)
                                     if response != 'OK':
                                         print('Invalid')
                                         return

@@ -196,22 +196,26 @@ class ChordNode:
             pass
 
     def request_handler(self, conn: socket, addr, data: list):
-        data_resp = None
+        resp = None
         option = int(data[0])
 
         if option == FIND_PREDECESSOR:
             target_id = int(data[1])
-            data_resp = self.find_pred(target_id)
+            node = self.find_pred(target_id)
+            resp = {'state':'OK','id':node.id, 'ip':ip}
 
         elif option == LOOKUP:
             target_id = int(data[1])
-            data_resp = self.lookup(target_id)
+            node = self.lookup(target_id)
+            resp = {'state':'OK','id':node.id, 'ip': node.ip}
 
         elif option == GET_SUCCESSOR:
-            data_resp = self.succ if self.succ else self.ref
+            node = self.succ if self.succ else self.ref
+            resp = {'state':'OK','id':node.id,'ip':node.ip}
 
         elif option == GET_PREDECESSOR:
-            data_resp = self.pred if self.pred else self.ref
+            node = self.pred if self.pred else self.ref
+            resp = {'state':'OK','id':node.id, 'ip': node.ip}
 
         elif option == NOTIFY:
             ip = data[2]
@@ -226,39 +230,35 @@ class ChordNode:
             self.not_alone_notify(ChordNodeReference(ip, self.port))
 
         elif option == CHECK_NODE:
-            data_resp = self.ref
+            node = self.ref
+            resp = {'state':'OK','id':node.id, 'ip': node.ip}
 
         elif option == ADD_TAGS_TO_FILE:
             file_name = data[1]
-            tag_names = json.loads(data[2])
+            tag_names = json.loads(data[2].replace("'", '"'))
             self.my_files.add_values_to_key(file_name,tag_names)
-            response = {'state':'OK'}
-        
+            resp = {'state':'OK'}
+
         elif option == ADD_TAGS_TO_FILE_UPLOAD:
             file_name = data[1]
             file_len = int(data[2])
-            tag_names = json.loads(data[3])
+            tag_names = json.loads(data[3].replace("'", '"'))
             self.my_files.add_values_to_key(file_name,tag_names)
-            response = {'state':'OK'}
-            conn.sendall(response)
+            conn.sendall('OK'.encode('utf-8'))
 
             file_data = bytearray()
             received_size = 0
-            while received_size < int(file_len):
+            print('aqui')
+            while received_size < file_len:
                 data = conn.recv(1024)  # Recibir 1024 bytes
                 if not data:
                     break
                 file_data.extend(data)  # Agregar los datos a la variable
                 received_size += len(data)
+                print('ya va a hacer upload')
             self.my_files.upload_file(file_name,file_data)
-            response = {'state':'OK'}
-
-
-        elif option == UPLOAD_FILE:
-            file_name = data[1]
-            file_content = data[2]
-            self.my_files.upload_file(file_name,file_content)
-            response = {'state':'OK'}
+            print('hizo upload')
+            resp = {'state':'OK'}
 
         elif option == DOWNLOAD_FILE:
             file_name = data[1]
@@ -267,49 +267,50 @@ class ChordNode:
             response = conn.recv(1024).decode('utf-8')
             if response == 'OK':
                 conn.sendall(file_content)
-            
-
-
         elif option == ADD_FILES_TO_TAG:
             tag_name = data[1]
-            file_names = json.loads(data[2])
+            file_names = json.loads(data[2].replace("'", '"'))
+            print('type1: ', type (file_names))
+            print('yaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1')
             self.my_tags.add_values_to_key(tag_name,file_names)
-            response = {'state':'OK'}
+            print('yaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa2')
+            resp = {'state':'OK'}
 
         elif option == GET_FILES_FROM_TAG:
             tag_name = data[1]
             files = self.my_tags.get_values(tag_name)
-            response = {'state':'OK','files':files}
+            resp = {'state':'OK','files':files}
 
         elif option == DELETE_FILE:
             file_name = data[1]
             self.my_files.delete_key(file_name)
-            response = {'state':'OK'}
+            resp = {'state':'OK'}
 
         elif option == GET_TAGS_FROM_FILE:
             file_name = data[1]
             tags = self.my_files.get_values(file_name)
-            response = {'state':'OK','tags':tags}
+            resp = {'state':'OK','tags':tags}
                 
         elif option == DELETE_FILES_FROM_TAG:
             tag_name = data[1]
-            file_list = data[2]
+            file_list = json.loads(data[2].replace("'", '"'))
             self.my_tags.remove_values_from_key(tag_name,file_list)
-            response = {'state':'OK'}
+            resp = {'state':'OK'}
         elif option == DELETE_TAGS_FROM_FILE:
             file_name = data[1]
-            tag_list = data[2]
+            tag_list = json.loads(data[2].replace("'", '"'))
             self.my_files.remove_values_from_key(file_name,tag_list)
-            response = {'state':'OK'}
+            resp = {'state':'OK'}
         elif option == GET_ALL_FILES:
             files = self.my_files.get_all_keys()
             tags = self.my_files.get_all_values()
-            response = {'state':'OK','files':files,'tags':tags}
-            
-        # Send response
-        if data_resp:
-            response = f'{data_resp.id},{data_resp.ip}'.encode('utf-8')
-            conn.sendall(response)
+            resp = {'state':'OK','files':files,'tags':tags}
+
+
+        if resp:
+            conn.sendall(json.dumps(resp).encode('utf-8'))
+        elif file_content:
+            conn.sendall(file_content)
         
         conn.close()
 

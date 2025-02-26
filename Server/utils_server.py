@@ -39,16 +39,16 @@ class Response():
         
 class ErrorMSG(Response):
     def __init__(self, msg):
-        super.__init__(msg = msg)
+        super().__init__(msg = msg)
         self.icon = '❌[ERROR]'
 class SuccesMSG(Response):
     def __init__(self, msg):
-        super.__init__(msg = msg)
+        super().__init__(msg = msg)
         self.icon = '✅[SUCCESSFULLY OPERATION]'
 
 class FilesMSG(Response):
     def __init__(self, msg,file_list, tag_list=None):
-        super.__init__(msg = msg)
+        super().__init__(msg = msg)
         self.icon = '🗂️[FILES]\n'
         self.file_list = file_list
         self.tag_list = tag_list

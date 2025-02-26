@@ -15,7 +15,7 @@ class ChordNodeReference:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.connect((self.ip, self.port))
                 s.sendall(f'{op},{data}'.encode('utf-8'))
-                return s.recv(1024)
+                return json.loads(s.recv(1024).decode('utf-8'))
         except Exception as e:
             print(f"Error sending data: {e}")
             response = {'state':'Error','message':'🔌Problema de conexión'}
@@ -30,61 +30,86 @@ class ChordNodeReference:
     # Property to get the successor of the current node
     @property
     def succ(self) -> 'ChordNodeReference':
-        response = self._send_data(GET_SUCCESSOR).decode('utf-8').split(',')
-        return ChordNodeReference(response[1], self.port)
+        response = self._send_data(GET_SUCCESSOR)
+        if response['state']!= 'Error':
+            return ChordNodeReference(response['ip'], self.port)
+        else:
+            print(response['message'])
 
     # Property to get the predecessor of the current node
     @property
     def pred(self) -> 'ChordNodeReference':
-        response = self._send_data(GET_PREDECESSOR).decode('utf-8').split(',')
-        return ChordNodeReference(response[1], self.port)
+        response = self._send_data(GET_PREDECESSOR)
+        if response['state']!= 'Error':
+            return ChordNodeReference(response['ip'], self.port)
+        else:
+            print(response['message'])
 
     # Method to notify the current node about another node
     def notify(self, node: 'ChordNodeReference'):
-        self._send_data(NOTIFY, f'{node.id},{node.ip}')
-
+        response = self._send_data(NOTIFY, f'{node.id},{node.ip}')
+        if response['state']=='Error':
+            print(response['message'])
     def reverse_notify(self, node: 'ChordNodeReference'):
-        self._send_data(REVERSE_NOTIFY, f'{node.id},{node.ip}')
+        response = self._send_data(REVERSE_NOTIFY, f'{node.id},{node.ip}')
+        if response['state']=='Error':
+            print(response['message'])
 
     def not_alone_notify(self, node: 'ChordNodeReference'):
-        self._send_data(NOT_ALONE_NOTIFY, f'{node.id},{node.ip}')
+        response = self._send_data(NOT_ALONE_NOTIFY, f'{node.id},{node.ip}')
+        if response['state']=='Error':
+            print(response['message'])
 
     # Method to check if the predecessor is alive
     def check_node(self) -> bool:
         response = self._send_data(CHECK_NODE)
-        if response != b'' and len(response.decode('utf-8')) > 0:
-            # Node provide a response
+        if response['state']=='Error':
+            print(response['message'])
+            return False
+        else:
             return True
-        return False
+        
     
     def lookup(self, id: int):
-        response = self._send_data(LOOKUP, str(id)).decode('utf-8').split(',')
-        return ChordNodeReference(response[1], self.port)
+        response = self._send_data(LOOKUP, str(id))
+        if response['state']!= 'Error':
+            return ChordNodeReference(response['ip'], self.port)
+        else:
+            print(response['message'])
     
     # ----------------- DATABASE -------------------------------------
-    def add_files_to_tag(self, tag: List[str], file_names: str):
+    def add_files_to_tag(self, tag: str, file_names: List[str]):
         """Appends files names to tag (works from any node)"""
-        response = self._send_data(ADD_FILES_TO_TAG, f"{tag},{file_names}").decode('utf-8')
+        response = self._send_data(ADD_FILES_TO_TAG, f"{tag},{file_names}")
         return response
     
     def add_tags_to_file(self, file_name: List[str], tag_names: str,len = None, content=None):
         """Appends tags names to file (works from any node)"""
+       
         if len and content:
-            response = self._send_data(ADD_TAGS_TO_FILE_UPLOAD, f"{file_name},{len},{tag_names}").decode('utf-8')
-            if response == "OK":
-                try:
-                    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                        s.connect((self.ip, self.port))
+            try:
+                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                    s.connect((self.ip, self.port))
+                    s.sendall(f'{ADD_TAGS_TO_FILE_UPLOAD},{file_name},{len},{tag_names}'.encode('utf-8'))
+                    response = s.recv(1024).decode('utf-8')
+                    if response == 'OK':
                         s.sendall(content)
-                        response = s.recv(1024)
-                except Exception as e:
-                    print(f"Error sending data: {e}")
-                    response = {'state':'Error','message':'🔌Problema de conexión'}
-            return response.decode('utf-8')
-        else:
-            response = self._send_data(ADD_TAGS_TO_FILE, f"{file_name},{tag_names}").decode('utf-8')
-            return response
+                        print('mando content')
+                        response = json.loads(s.recv(1024).decode('utf-8'))
+                        print('recibio respuesta')
+                        print(response)
+                    else:
+                        response = {'state':'Error','message':'🔌Problema de conexión'}
 
+            except Exception as e:
+                print(f"Error sending data: {e}")
+                response = {'state':'Error','message':'🔌Problema de conexión'}
+        else:
+            response = self._send_data(ADD_TAGS_TO_FILE, f"{file_name},{tag_names}")
+
+        print('antes del return : ', response)
+        return response
+    
     def download_file(self,file_name):
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:

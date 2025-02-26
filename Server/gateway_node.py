@@ -26,12 +26,15 @@ class GatewayNode(ChordNode):
         Endpoint para añadir archivos:
         Recibe un JSON con los parámetros:
         {
-            "files_list": [lista de archivos],
-            "tags_list": [lista de etiquetas]
+            "file_list": [lista de archivos],
+            "tag_list": [lista de etiquetas]
         } 
         """
+        for content in content_list:
+            print('content: ',content)
         try:
             self.writen_service.add_tags_to_files(file_list,tag_list,len_list,content_list)
+            print('ya add tags to file')
             self.writen_service.add_files_to_tags(file_list,tag_list)
         except Exception:
             return ErrorMSG('Files could not be added to the server')

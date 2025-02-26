@@ -74,42 +74,44 @@ class WritenService(Service):
 
         if content_list and len_list:
             for owner, file, len, content in zip(file_owners, file_list, len_list, content_list):
-                ans = json.loads(owner.add_tags_to_file(file, tag_list,len, content))
+                ans = owner.add_tags_to_file(file, tag_list,len, content)
+                print('ans_for_service: ', ans)
                 if ans['state']=='Error':
                     raise Exception(ans['message'])
 
         else:
             for owner, file in zip(file_owners, file_list):
-                ans = json.loads(owner.add_tags_to_file(file, tag_list))
+                ans = owner.add_tags_to_file(file, tag_list)
                 if ans['state']=='Error':
                     raise Exception(ans['message'])
         
     def add_files_to_tags(self, file_list, tag_list):
         tag_owners = self.find_owner(tag_list)
-
+        print('estoy aqui')
         for owner, tag in zip(tag_owners, tag_list):
-            ans = json.loads(owner.add_files_to_tag(tag, file_list))
+            ans = owner.add_files_to_tag(tag, file_list)
+            print('ya')
             if ans['state']=='Error':
                 raise Exception(ans['message'])
     
     def delete_files(self,file_list):
         files_owners = self.find_owner(file_list)
         for owner, file in zip(files_owners, file_list):
-            ans = json.loads(owner.delete_file(file))
+            ans = owner.delete_file(file)
             if ans['state']=='Error':
                 raise Exception(ans['message'])
 
     def delete_files_from_tags(self,tag_list,file_list):
         tags_owners = self.find_owner(tag_list)
         for owner, tag in zip(tags_owners, tag_list):
-            ans = json.loads(owner.delete_files_from_tag(tag,file_list))
+            ans = owner.delete_files_from_tag(tag,file_list)
             if ans['state']=='Error':
                 raise Exception(ans['message'])
 
     def delete_tags_from_files(self,file_list,tag_list):
         files_owners = self.find_owner(file_list)
         for owner, file in zip(files_owners, file_list):
-            ans = json.loads(owner.delete_tags_from_file(file,tag_list))
+            ans = owner.delete_tags_from_file(file,tag_list)
             if ans['state']=='Error':
                 raise Exception(ans['message'])
 

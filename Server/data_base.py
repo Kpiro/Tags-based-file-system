@@ -1,6 +1,6 @@
 import os
 import json
-main_dir = "/app/Server/Storage"
+main_dir = "./Data_base"
 from utils_server import auto_save
 class DataBase:
     def __init__(self,node_id,name) -> None:
@@ -24,12 +24,18 @@ class DataBase:
 
     # Write
     @auto_save
-    def add_values_to_key(self,key,values):
-        self.data[key]+=values
-
+    def add_values_to_key(self, key, values):
+        print(type(values))
+        print('values: ',values)
+        if key in self.data:
+            self.data[key] += values
+        else:
+            self.data[key] = values
     @auto_save
     def remove_values_from_key(self,key,values):
-        self.data[key]-=values
+        if key in self.data:
+            self.data[key] -= values
+
         if len(self.data[key])==0:
             del self.data[key]
 

@@ -17,7 +17,7 @@ class Server:
         self.node = GatewayNode(ip)
 
         # Iniciar hilo para responder descubrimientos multicast (para conexión cliente–servidor)
-        threading.Thread(target=self.multicast_listener, daemon=True).start()
+        # threading.Thread(target=self.multicast_listener, daemon=True).start()
         # Iniciar el servidor TCP para clientes (por ejemplo, en puerto DEFAULT_SERVER_PORT, ej. 8005)
         threading.Thread(target=self.start_server, args=(ip,port)).start()
         if known_node_ip:
@@ -82,7 +82,7 @@ class Server:
                 response = self.process_request(request, client_socket)
                 if response != None:
                     try:
-                        client_socket.sendall(response.encode('utf-8'))
+                        client_socket.sendall(str(response).encode('utf-8'))
                     except:
                         client_socket.sendall(response)
                 
@@ -94,6 +94,7 @@ class Server:
             
 
     def process_request(self,request, client_socket):
+        print('servidor')
         if request == 'show':
             client_socket.send('OK'.encode('utf-8'))
             return self.node.show()
@@ -111,12 +112,13 @@ class Server:
             file_name =''
             while True:
                 file_info = client_socket.recv(1024).decode('utf-8')
+                client_socket.send('OK'.encode('utf-8'))
                 if file_info == 'end_file':
                     break
                 
                 file_info = file_info.split(',')
                 file_name = file_info[0]
-                file_size = file_info[1]
+                file_size = int(file_info[1])
                 file_list.append(file_name)
                 len_list.append(file_size)
                 # Variable para almacenar el archivo en memoria
@@ -124,7 +126,9 @@ class Server:
 
                 # Recibir el archivo en bloques
                 received_size = 0
-                while received_size < int(file_size):
+                print('file_size_server: ',file_size )
+                while received_size < file_size:
+                    print('received_size: ',received_size)
                     data = client_socket.recv(1024)  # Recibir 1024 bytes
                     if not data:
                         break
@@ -134,7 +138,8 @@ class Server:
 
                 client_socket.send('OK'.encode('utf-8'))
 
-            tag_list = client_socket.recv(1024).decode('utf-8').split('')
+            tag_arg = client_socket.recv(1024).decode('utf-8')
+            tag_list = [tag.strip() for tag in tag_arg.split(',')]
             return self.node.add_files(file_list,tag_list,len_list,content_list)
 
 
@@ -172,8 +177,8 @@ class Server:
 
 if __name__ == "__main__":
     # Get ip from current server
-    ip = socket.gethostbyname(socket.gethostname()) 
-
+    # ip = socket.gethostbyname(socket.gethostname()) 
+    ip = "127.0.0.1"
     # First node case
     if len(sys.argv) == 1:
 
