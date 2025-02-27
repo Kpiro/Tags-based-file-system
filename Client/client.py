@@ -111,6 +111,7 @@ class Client:
         elif cmd == "show":
             self.client_socket.send(cmd.encode('utf-8'))
             response = self.client_socket.recv(1024).decode('utf-8')
+            print(response)
             return
 
         try:
@@ -149,6 +150,7 @@ class Client:
                     response = self.send_request(cmd)
                     if response == 'OK':
                         response = self.send_request(query)
+                        print(response)
             elif cmd == "delete":
                 param_query = params[1].split(' ',1)
                 if param_query[0] == 'query':
@@ -165,12 +167,14 @@ class Client:
                     response = self.send_request('delete-files')
                     if response == 'OK':
                         response = self.send_request(query)
+                        print(response)
                 else:
                     response = self.send_request('delete-tags')
                     if response == 'OK':
                         response = self.send_request(query)
                         if response == 'OK':
                             response = self.send_request(tags)
+                            print(response)
 
             elif cmd == "add":
                 param_tags = params[2].split(' ',1)
@@ -188,11 +192,10 @@ class Client:
                         response = self.send_request(query)
                         if response == 'OK':
                             response = self.send_request(tags)
+                            print(response)
                 elif param_0[0]=='files':
                     files = param_0[1]
-                    print('va a mandar comando')
                     response = self.send_request('add-files')
-                    print('mando comando')
                     print(response)
                     if response == "OK":
                         file_path_list = [file_path.strip() for file_path in files.split(',')]

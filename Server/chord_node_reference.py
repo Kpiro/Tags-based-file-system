@@ -135,33 +135,33 @@ class ChordNodeReference:
             return {'state':'Error','message':'🔌Connection Problem'}
 
     def get_files_from_tag(self, tag_name:str):
-        """Get files with the given tag"""
-        response = self._send_data(GET_FILES_FROM_TAG, f"{tag_name}").decode('utf-8')
+        """Get all files with the given tag"""
+        response = self._send_data(GET_FILES_FROM_TAG, f"{tag_name}")
         return response
     
     def get_tags_from_file(self, file_name:str):
-        """Get files with the given tag"""
-        response = self._send_data(GET_TAGS_FROM_FILE, f"{file_name}").decode('utf-8')
+        """Get all tags from a given file"""
+        response = self._send_data(GET_TAGS_FROM_FILE, f"{file_name}")
         return response
     
     def delete_file(self, file_name:str):
         """Get files with the given tag"""
-        response = self._send_data(DELETE_FILE, f"{file_name}").decode('utf-8')
+        response = self._send_data(DELETE_FILE, f"{file_name}")
         return response
     
-    def delete_files_from_tag(self, tag_name:str):
+    def delete_files_from_tag(self, tag_name:str, file_names:List[str]):
         """Get files with the given tag"""
-        response = self._send_data(DELETE_FILES_FROM_TAG, f"{tag_name}").decode('utf-8')
+        response = self._send_data(DELETE_FILES_FROM_TAG, f"{tag_name},{file_names}")
         return response
     
-    def delete_tags_from_file(self, file_name:str):
+    def delete_tags_from_file(self, file_name:str, tag_names:List[str]):
         """Get files with the given tag"""
-        response = self._send_data(DELETE_TAGS_FROM_FILE, f"{file_name}").decode('utf-8')
+        response = self._send_data(DELETE_TAGS_FROM_FILE, f"{file_name},{tag_names}")
         return response
     
     def get_all_files(self):
         """Get all files that belong to a server"""
-        response = self._send_data(GET_ALL_FILES).decode('utf-8')
+        response = self._send_data(GET_ALL_FILES)
         return response
     
     def __str__(self) -> str:

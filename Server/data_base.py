@@ -8,15 +8,20 @@ class DataBase:
         self.json_dir = os.path.join(self.server_dir,'Jsons')
         self.json_path = os.path.join(self.json_dir,name)
         self.create_dir()
-        self.data = {}
+        # self.data = {}
+        self.load_data_base()
     
     def create_dir(self):
         os.makedirs(self.server_dir,exist_ok=True)
         os.makedirs(self.json_dir,exist_ok=True)
 
-    def read_database(self):
-        with open(self.json_path, "r", encoding="utf-8") as file:
-            self.data = json.load(file)
+    def load_data_base(self):
+        try:
+            with open(self.json_path, "r", encoding="utf-8") as file:
+                self.data = json.load(file)
+        except :
+            self.data = {} 
+
 
     def save_database(self):
         with open(self.json_path, "w", encoding="utf-8") as file:
@@ -34,7 +39,8 @@ class DataBase:
     @auto_save
     def remove_values_from_key(self,key,values):
         if key in self.data:
-            self.data[key] -= values
+            for value in values:
+                self.data[key].remove(value)
 
         if len(self.data[key])==0:
             del self.data[key]
@@ -93,9 +99,8 @@ class FileDataBase(DataBase):
 
     @auto_save    
     def remove_values_from_key(self,key,values):
-        self.data[key]-=values
+        super().remove_values_from_key(key,values)
         if len(self.data[key])==0:
-            del self.data[key]
             self.delete_file_from_storage(key)
 
 

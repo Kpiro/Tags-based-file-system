@@ -30,8 +30,7 @@ class GatewayNode(ChordNode):
             "tag_list": [lista de etiquetas]
         } 
         """
-        for content in content_list:
-            print('content: ',content)
+
         try:
             self.writen_service.add_tags_to_files(file_list,tag_list,len_list,content_list)
             print('ya add tags to file')
@@ -39,6 +38,7 @@ class GatewayNode(ChordNode):
         except Exception:
             return ErrorMSG('Files could not be added to the server')
         else:
+            print('sucesssss')
             return SuccesMSG('Files added successfully')
 
     def add_tags(self,tag_query,tag_list):
@@ -52,13 +52,17 @@ class GatewayNode(ChordNode):
         """
 
         try:
-            files = self.read_service.retrieve_files(tag_query)
-            if len(files)!=0:
-                self.writen_service.add_files(files,tag_list)
+            file_list = self.read_service.retrieve_files(tag_query)
+            print('ya retrieve')
+            print('file_list: ',file_list)
+            if len(file_list)!=0:
+                self.writen_service.add_tags_to_files(file_list,tag_list)
+                print('ya add tags to file')
+                self.writen_service.add_files_to_tags(file_list,tag_list)
         except Exception:
-            return ErrorMSG('Tags could not be added')
+            return str(ErrorMSG('Tags could not be added'))+'\n'+str(FilesMSG(file_list))
         else:
-            return SuccesMSG('Tags added successfully')
+            return str(SuccesMSG('Tags added successfully'))+'\n'+str(FilesMSG(file_list))
 
 
     def delete_files(self,tag_query):
@@ -76,9 +80,9 @@ class GatewayNode(ChordNode):
             self.writen_service.delete_files(files)
             self.writen_service.delete_files_from_tags(tags,files)
         except Exception:
-            return ErrorMSG('Files could not be deleted')
+            return str(ErrorMSG('Files could not be deleted'))+'\n'+str(FilesMSG(files))
         else:
-            return SuccesMSG('Files deleted successfully')+'\n'+FilesMSG(files)
+            return str(SuccesMSG('Files deleted successfully'))+'\n'+str(FilesMSG(files))
 
     def delete_tags(self,tag_query,tag_list):
         """
@@ -92,10 +96,11 @@ class GatewayNode(ChordNode):
         try:
             files = self.read_service.retrieve_files(tag_query)
             self.writen_service.delete_tags_from_files(files,tag_list)
+            self.writen_service.delete_files_from_tags(tag_list,files)
         except Exception:
-            return ErrorMSG('Tags could not be deleted')
+            return str(ErrorMSG('Tags could not be deleted'))+'\n'+str(FilesMSG(files))
         else:
-            return SuccesMSG('Tags deleted successfully')+'\n'+FilesMSG(files)
+            return str(SuccesMSG('Tags deleted successfully'))+'\n'+str(FilesMSG(files))
 
     def list_files(self,tag_query):
         """
@@ -105,9 +110,9 @@ class GatewayNode(ChordNode):
         try:
             files = self.read_service.retrieve_files(tag_query)
         except Exception:
-            return ErrorMSG('Files could not be listed')
+            return str(ErrorMSG('Files could not be listed'))+'\n'+str(FilesMSG(files))
         else:
-            return SuccesMSG('Files listed successfully')+'\n'+FilesMSG(files)
+            return str(SuccesMSG('Files listed successfully'))+'\n'+str(FilesMSG(files))
     
     def download_file(self,file_name):
         try:
@@ -121,8 +126,8 @@ class GatewayNode(ChordNode):
         try:
             files,tags = self.read_service.retrieve_all_files()
         except Exception:
-            return ErrorMSG('Files could not be listed')
+            return str(ErrorMSG('Files could not be listed'))
         else:
-            return SuccesMSG('Files listed successfully')+'\n'+FilesMSG(file_list=files,tag_list=tags)
+            return str(SuccesMSG('Files listed successfully'))+'\n'+str(FilesMSG(file_list=files,tag_list=tags))
 
         

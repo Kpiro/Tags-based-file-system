@@ -198,6 +198,7 @@ class ChordNode:
     def request_handler(self, conn: socket, addr, data: list):
         resp = None
         option = int(data[0])
+        file_content = None
 
         if option == FIND_PREDECESSOR:
             target_id = int(data[1])

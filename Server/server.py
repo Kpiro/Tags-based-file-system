@@ -94,16 +94,16 @@ class Server:
             
 
     def process_request(self,request, client_socket):
-        print('servidor')
         if request == 'show':
-            client_socket.send('OK'.encode('utf-8'))
             return self.node.show()
         elif request == 'add-tags':
             client_socket.send('OK'.encode('utf-8'))
-            tag_query = client_socket.recv(1024).decode('utf-8').split(',')
+            tag_query = [query.strip() for query in client_socket.recv(1024).decode('utf-8').split(',')]
+            print('tag_query: ',tag_query)
             client_socket.send('OK'.encode('utf-8'))
-            tag_list = client_socket.recv(1024).decode('utf-8').split(',')
-            return self.node.add_files(tag_query,tag_list)
+            tag_list = [tag.strip() for tag in client_socket.recv(1024).decode('utf-8').split(',')]
+            print('tag_list: ',tag_list)
+            return self.node.add_tags(tag_query,tag_list)
         elif request == 'add-files':
             client_socket.send('OK'.encode('utf-8'))
             file_list = []
@@ -145,17 +145,17 @@ class Server:
 
         elif request == 'delete-tags':
             client_socket.send('OK'.encode('utf-8'))
-            tag_query = client_socket.recv(1024).decode('utf-8').split(',')
+            tag_query = [query.strip() for query in client_socket.recv(1024).decode('utf-8').split(',')]
             client_socket.send('OK'.encode('utf-8'))
-            tag_list = client_socket.recv(1024).decode('utf-8').split(',')
+            tag_list = [tag.strip() for tag in client_socket.recv(1024).decode('utf-8').split(',')]
             return self.node.delete_tags(tag_query,tag_list)
         elif request == 'delete-files':
             client_socket.send('OK'.encode('utf-8'))
-            tag_query = client_socket.recv(1024).decode('utf-8').split(',')
+            tag_query = [query.strip() for query in client_socket.recv(1024).decode('utf-8').split(',')]
             return self.node.delete_files(tag_query)
         elif request == 'list':
             client_socket.send('OK'.encode('utf-8'))
-            tag_query = client_socket.recv(1024).decode('utf-8').split(',')
+            tag_query = [query.strip() for query in client_socket.recv(1024).decode('utf-8').split(',')]
             return self.node.list_files(tag_query)
         elif request == 'download':
             client_socket.send('OK'.encode('utf-8'))

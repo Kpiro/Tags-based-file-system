@@ -18,19 +18,32 @@ class ReadService(Service):
         tags_owners = self.find_owner(tag_list)
         files = set()
         for owner, tag in zip(tags_owners, tag_list):
-            ans = json.loads(owner.get_files_from_tag(tag))
+            ans = owner.get_files_from_tag(tag)
+            print('get_files_from_tag: ',ans)
             if ans['state']=='Error':
                 raise Exception(ans['message'])
             else:
-                files.union(set(ans['files']))
-        return files
+                print(type(ans['files']))
+                files.update(set(ans['files']))
+        print('list: ',list(files))
+        return list(files)
     
+    def retrieve_tags(self,file_list):
+        files_owners = self.find_owner(file_list)
+        tags = set()
+        for owner, file in zip(files_owners, file_list):
+            ans = owner.get_tags_from_file(file)
+            if ans['state']=='Error':
+                raise Exception(ans['message'])
+            else:
+                tags.update(set(ans['tags']))
+        return list(tags)
     def retrieve_all_files(self):
         files = []
         tags = []
         node = self.chord_ring
         while True:
-            ans = json.loads(node.get_all_files())
+            ans = node.get_all_files()
             if ans['state']=='Error':
                 raise Exception(ans['message'])
             else:
@@ -42,16 +55,7 @@ class ReadService(Service):
         return files,tags
 
     
-    def retrieve_tags(self,file_list):
-        files_owners = self.find_owner(file_list)
-        tags = set()
-        for owner, file in zip(files_owners, file_list):
-            ans = json.loads(owner.get_tags_from_file(file))
-            if ans['state']=='Error':
-                raise Exception(ans['message'])
-            else:
-                tags.union(set(ans['tags']))
-        return tags
+
     
     def download_file(self,file_name):
         file_owner = self.find_owner([file_name])
@@ -73,6 +77,7 @@ class WritenService(Service):
         file_owners = self.find_owner(file_list)
 
         if content_list and len_list:
+            print('111111111111111111111')
             for owner, file, len, content in zip(file_owners, file_list, len_list, content_list):
                 ans = owner.add_tags_to_file(file, tag_list,len, content)
                 print('ans_for_service: ', ans)
@@ -80,6 +85,7 @@ class WritenService(Service):
                     raise Exception(ans['message'])
 
         else:
+            print('22222222222222222222222222222')
             for owner, file in zip(file_owners, file_list):
                 ans = owner.add_tags_to_file(file, tag_list)
                 if ans['state']=='Error':
@@ -95,15 +101,15 @@ class WritenService(Service):
                 raise Exception(ans['message'])
     
     def delete_files(self,file_list):
-        files_owners = self.find_owner(file_list)
-        for owner, file in zip(files_owners, file_list):
+        file_owners = self.find_owner(file_list)
+        for owner, file in zip(file_owners, file_list):
             ans = owner.delete_file(file)
             if ans['state']=='Error':
                 raise Exception(ans['message'])
 
     def delete_files_from_tags(self,tag_list,file_list):
-        tags_owners = self.find_owner(tag_list)
-        for owner, tag in zip(tags_owners, tag_list):
+        tag_owners = self.find_owner(tag_list)
+        for owner, tag in zip(tag_owners, tag_list):
             ans = owner.delete_files_from_tag(tag,file_list)
             if ans['state']=='Error':
                 raise Exception(ans['message'])

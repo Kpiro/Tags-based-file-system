@@ -46,21 +46,24 @@ class SuccesMSG(Response):
         super().__init__(msg = msg)
         self.icon = '✅[SUCCESSFULLY OPERATION]'
 
-class FilesMSG(Response):
-    def __init__(self, msg,file_list, tag_list=None):
-        super().__init__(msg = msg)
-        self.icon = '🗂️[FILES]\n'
-        self.file_list = file_list
-        self.tag_list = tag_list
-        self.msg = self.show_files(file_list)
 
-    def show_files(self):
-        if self.tag_list:
-            for i,file,tags in enumerate(zip(self.file_list,self.tag_list)):
-                self.msg += f'{Fore.WHITE}{i+1}- {file} : {tags}\n'
-        else:
-            for i,file in enumerate(self.file_list):
-                self.msg += f'{Fore.WHITE}{i+1}- {file}\n'
+def show_files(file_list,tag_list):
+    msg = ''
+    if tag_list:
+        for i,(file,tags) in enumerate(zip(file_list,tag_list)):
+            msg += f'{Fore.WHITE}{i+1}- {file} : {tags}\n'
+    else:
+        for i,file in enumerate(file_list):
+            msg += f'{Fore.WHITE}{i+1}- {file}\n'
+    return msg
+class FilesMSG(Response):
+    def __init__(self, file_list, tag_list=None):
+        print('filemsg',file_list)
+        super().__init__(msg = show_files(file_list,tag_list))
+        self.icon = '🗂️[FILES]\n'
+
+
+
 
 
     
