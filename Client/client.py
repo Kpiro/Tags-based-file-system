@@ -4,7 +4,6 @@ import socket
 import json
 from utils_client import *
 import os
-
 END_FILE = 30
 END_FILES = 31
 # Configuración del grupo multicast
@@ -123,25 +122,36 @@ class Client:
             if cmd == "download":
                 response = self.send_request(cmd)
                 if response == 'OK':
-                    param_file = params[1].split(' ',1)
-                    if param_file[0]=='file':
-                        file_name = param_file[1]
-                        file_size = self.send_request(file_name)
+                    param_query = params[1].split(' ',1)
+                    if param_query[0]=='query':
+                        query = param_query[1]
+                        response = self.send_request(query)
+                        
 
-                        file_path = os.path.join(self.storage_dir,file_name)
-                        file_data = bytearray()
-                        received_size = 0
-                        while received_size < int(file_size):
-                            data = self.client_socket.recv(1024)  # Recibir 1024 bytes
-                            if not data:
+                        while True:
+                            print('response: ', response)
+                            if response == 'end_file':
                                 break
-                            file_data.extend(data)  # Agregar los datos a la variable
-                            received_size += len(data)
-                        with open(file_path, "wb") as dest_file:
-                            dest_file.write(file_data)
-                            print('File {file_name} downloaded succesfully')
-                else:
-                    print('Invalid')
+                            file_info = response.split(',',1)
+                            file_name = file_info[0]
+                            file_size = int(file_info[1])
+                            self.client_socket.send('OK'.encode('utf-8'))
+                            file_path = os.path.join(self.storage_dir,file_name)
+                            file_data = bytearray()
+                            received_size = 0
+                            while received_size < file_size:
+                                data = self.client_socket.recv(1024)  # Recibir 1024 bytes
+                                if not data:
+                                    break
+                                file_data.extend(data)  # Agregar los datos a la variable
+                                received_size += len(data)
+                            response = self.send_request('OK')
+
+                            with open(file_path, "wb") as dest_file:
+                                dest_file.write(file_data)
+                                print(f'File {file_name} downloaded succesfully')
+
+                        print(f'All files were downloaded succesfully in {self.storage_dir}')
 
             elif cmd == "list":
                 param_query= params[1].split(' ',1)

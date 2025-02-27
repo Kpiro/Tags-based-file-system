@@ -159,13 +159,23 @@ class Server:
             return self.node.list_files(tag_query)
         elif request == 'download':
             client_socket.send('OK'.encode('utf-8'))
-            file_name = client_socket.recv(1024).decode('utf-8')
-            file_content,file_size = self.node.download_file(file_name)
-            client_socket.sendall(file_size).encode('utf-8')
-            response = client_socket.recv(1024).decode('utf-8')
-            if response != 'OK':
-                return 'Error'
-            return file_content
+            tag_query = [query.strip() for query in client_socket.recv(1024).decode('utf-8').split(',')]
+            file_names, file_sizes, file_contents = self.node.download_files(tag_query)
+
+            print('ya hizo esto')
+            print(file_names)
+            print(file_sizes)
+            print(file_contents)
+            for file_name, file_size, file_content in zip(file_names, file_sizes,file_contents):
+                client_socket.send(f'{file_name},{file_size}'.encode('utf-8'))
+                response = client_socket.recv(1024).decode('utf-8')
+                if response == 'OK':
+                    client_socket.sendall(file_content)
+                    response = client_socket.recv(1024).decode('utf-8')
+            return 'end_file'
+            # client_socket.sendall('end_file'.encode('utf-8'))
+
+
 
 
 

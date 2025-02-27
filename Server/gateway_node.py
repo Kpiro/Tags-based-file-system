@@ -35,8 +35,9 @@ class GatewayNode(ChordNode):
             self.writen_service.add_tags_to_files(file_list,tag_list,len_list,content_list)
             print('ya add tags to file')
             self.writen_service.add_files_to_tags(file_list,tag_list)
-        except Exception:
-            return ErrorMSG('Files could not be added to the server')
+        except Exception as e:
+            print('esta es e: ', e)
+            return ErrorMSG(f'Files could not be added to the server: {e}')
         else:
             print('sucesssss')
             return SuccesMSG('Files added successfully')
@@ -114,13 +115,19 @@ class GatewayNode(ChordNode):
         else:
             return str(SuccesMSG('Files listed successfully'))+'\n'+str(FilesMSG(files))
     
-    def download_file(self,file_name):
-        try:
-            file_content, file_size= self.read_service.download_file(file_name)
-        except Exception:
-            return ErrorMSG('File {file_name} could not be downloaded')
-        else:
-            return file_content,file_size
+    def download_files(self,tag_query):
+        file_names = self.read_service.retrieve_files(tag_query)
+        file_contents, file_sizes = self.read_service.download_files(file_names)
+        return file_names, file_sizes, file_contents
+
+
+    # def download_file(self,file_name):
+    #     try:
+    #         file_content, file_size= self.read_service.download_file(file_name)
+    #     except Exception:
+    #         return ErrorMSG('File {file_name} could not be downloaded')
+    #     else:
+    #         return file_content,file_size
 
     def show(self):
         try:

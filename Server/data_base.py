@@ -2,30 +2,33 @@ import os
 import json
 main_dir = "./Data_base"
 from utils_server import auto_save
+
 class DataBase:
     def __init__(self,node_id,name) -> None:
         self.server_dir = os.path.join(main_dir,str(node_id))
         self.json_dir = os.path.join(self.server_dir,'Jsons')
         self.json_path = os.path.join(self.json_dir,name)
         self.create_dir()
-        # self.data = {}
+        self.data:dict[str,set] 
         self.load_data_base()
     
     def create_dir(self):
         os.makedirs(self.server_dir,exist_ok=True)
         os.makedirs(self.json_dir,exist_ok=True)
 
+    
     def load_data_base(self):
         try:
             with open(self.json_path, "r", encoding="utf-8") as file:
-                self.data = json.load(file)
+                self.data = {key: set(value) for key, value in json.load(file).items()}
         except :
             self.data = {} 
 
 
     def save_database(self):
         with open(self.json_path, "w", encoding="utf-8") as file:
-            json.dump(self.data, file, indent=4, ensure_ascii=False)
+            serializable_files = {key: list(value) if isinstance(value, set) else value for key, value in self.data.items()}
+            json.dump(serializable_files, file, indent=4, ensure_ascii=False)
 
     # Write
     @auto_save
@@ -33,9 +36,9 @@ class DataBase:
         print(type(values))
         print('values: ',values)
         if key in self.data:
-            self.data[key] += values
+            self.data[key].update(set(values))
         else:
-            self.data[key] = values
+            self.data[key] = set(values)
     @auto_save
     def remove_values_from_key(self,key,values):
         if key in self.data:
@@ -54,10 +57,10 @@ class DataBase:
             return False
 
     def check_key(self,key):
-        return self.data.get(key)
+        return key in self.data
     
     def get_values(self,key):
-        return self.data[key]
+        return list(self.data[key])
        
     def get_all_keys(self):
         return list(self.data.keys())
@@ -86,6 +89,7 @@ class FileDataBase(DataBase):
             return self.delete_file_from_storage(key)
         else:
             return False
+        
     def upload_file(self,file_name,file_content):
         file_path = os.path.join(self.storage_dir,file_name)
         with open(file_path, "wb") as source_file:
@@ -94,13 +98,17 @@ class FileDataBase(DataBase):
     def download_file(self,file_name):
         file_path = os.path.join(self.storage_dir,file_name)
         file_size = os.path.getsize(file_path)
-        with open(file_path, "wb") as source_file:
+        with open(file_path, "rb") as source_file:
             return source_file.read(),file_size
 
     @auto_save    
     def remove_values_from_key(self,key,values):
-        super().remove_values_from_key(key,values)
+        if key in self.data:
+            for value in values:
+                self.data[key].remove(value)
+
         if len(self.data[key])==0:
+            del self.data[key]
             self.delete_file_from_storage(key)
 
 

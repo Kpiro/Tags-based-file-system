@@ -98,6 +98,8 @@ class ChordNodeReference:
                         response = json.loads(s.recv(1024).decode('utf-8'))
                         print('recibio respuesta')
                         print(response)
+                    elif response:
+                        return json.loads(response)
                     else:
                         response = {'state':'Error','message':'🔌Problema de conexión'}
 
@@ -115,24 +117,23 @@ class ChordNodeReference:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.connect((self.ip, self.port))
                 s.sendall(f'{DOWNLOAD_FILE},{file_name}'.encode('utf-8'))
-                json_recv = json.loads(s.recv(1024).decode('utf-8'))
-                if json_recv['state'] == 'OK':
-                    file_size = int(json_recv['file_size'])
-                    # Variable para almacenar el archivo en memoria
-                    file_data = bytearray()  # Usamos bytearray para eficiencia en concatenación
-                    # Recibir el archivo en bloques
-                    received_size = 0
-                    while received_size < file_size:
-                        data = s.recv(1024)  # Recibir 1024 bytes
-                        if not data:
-                            break
-                        file_data.extend(data)  # Agregar los datos a la variable
-                        received_size += len(data)
-                    return file_data,file_size
-                else:
-                    return {'state':'Error','message':'File {filename} could not be downloaded'}
+
+                file_size = int(s.recv(1024).decode('utf-8'))
+                s.send('OK'.encode('utf-8'))
+                # Variable para almacenar el archivo en memoria
+                file_data = bytearray()  # Usamos bytearray para eficiencia en concatenación
+                # Recibir el archivo en bloques
+                received_size = 0
+                while received_size < file_size:
+                    data = s.recv(1024)  # Recibir 1024 bytes
+                    if not data:
+                        break
+                    file_data.extend(data)  # Agregar los datos a la variable
+                    received_size += len(data)
+                return {'state':'OK','content':file_data,'size':file_size}
         except Exception as e:
             return {'state':'Error','message':'🔌Connection Problem'}
+
 
     def get_files_from_tag(self, tag_name:str):
         """Get all files with the given tag"""

@@ -19,7 +19,12 @@ class ChordNode:
         self.m = m # Número de bits
         self.finger_table = [self.ref]*self.m  # Tabla de finger
         self.my_files = FileDataBase(self.id)
+        self.pred_files = FileDataBase(self.pred.id)
+        self.succ_files = FileDataBase(self.succ.id)
+
         self.my_tags = TagDataBase(self.id)
+        self.pred_tags = TagDataBase(self.pred.id)
+        self.succ_tags = TagDataBase(self.succ.id)
         self.next = 0  # Finger table index to fix next
 
         # Start threads
@@ -244,37 +249,39 @@ class ChordNode:
             file_name = data[1]
             file_len = int(data[2])
             tag_names = json.loads(data[3].replace("'", '"'))
-            self.my_files.add_values_to_key(file_name,tag_names)
-            conn.sendall('OK'.encode('utf-8'))
 
-            file_data = bytearray()
-            received_size = 0
-            print('aqui')
-            while received_size < file_len:
-                data = conn.recv(1024)  # Recibir 1024 bytes
-                if not data:
-                    break
-                file_data.extend(data)  # Agregar los datos a la variable
-                received_size += len(data)
-                print('ya va a hacer upload')
-            self.my_files.upload_file(file_name,file_data)
-            print('hizo upload')
-            resp = {'state':'OK'}
+            if self.my_files.check_key(file_name):
+                resp = {'state': 'Error', 'message': f'File "{file_name}" is already in database'}
+            
+            else:
+                self.my_files.add_values_to_key(file_name,tag_names)
+                conn.sendall('OK'.encode('utf-8'))
+
+                file_data = bytearray()
+                received_size = 0
+                while received_size < file_len:
+                    data = conn.recv(1024)  # Recibir 1024 bytes
+                    if not data:
+                        break
+                    file_data.extend(data)  # Agregar los datos a la variable
+                    received_size += len(data)
+                    print('ya va a hacer upload')
+                self.my_files.upload_file(file_name,file_data)
+                print('hizo upload')
+                resp = {'state':'OK'}
 
         elif option == DOWNLOAD_FILE:
             file_name = data[1]
             file_content,file_size = self.my_files.download_file(file_name)
-            conn.sendall({'state':'OK','file_size':file_size}.encode('utf-8'))
+            conn.sendall(str(file_size).encode('utf-8'))
             response = conn.recv(1024).decode('utf-8')
             if response == 'OK':
                 conn.sendall(file_content)
+                return
         elif option == ADD_FILES_TO_TAG:
             tag_name = data[1]
             file_names = json.loads(data[2].replace("'", '"'))
-            print('type1: ', type (file_names))
-            print('yaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1')
             self.my_tags.add_values_to_key(tag_name,file_names)
-            print('yaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa2')
             resp = {'state':'OK'}
 
         elif option == GET_FILES_FROM_TAG:
@@ -310,9 +317,7 @@ class ChordNode:
 
         if resp:
             conn.sendall(json.dumps(resp).encode('utf-8'))
-        elif file_content:
-            conn.sendall(file_content)
-        
+
         conn.close()
 
     # Start server method to handle incoming requests

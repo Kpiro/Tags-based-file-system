@@ -56,19 +56,18 @@ class ReadService(Service):
 
     
 
-    
-    def download_file(self,file_name):
-        file_owner = self.find_owner([file_name])
-        owner=file_owner[0]
-        ans = owner.download_file(file_name)
-        try:
-            file_content = ans[0]
-            file_size = ans[1]
-        except:
-            raise Exception(ans['message'])
-        else:
-            file_content,file_size
-
+    def download_files(self,file_list):
+        file_owners = self.find_owner(file_list)
+        file_contents = []
+        file_sizes = []
+        for owner, file in zip(file_owners,file_list):
+            ans = owner.download_file(file)
+            if ans['state']=='Error':
+                raise Exception(ans['message'])
+            file_contents.append(ans['content'])
+            file_sizes.append(ans['size'])
+        return file_contents,file_sizes
+            
 class WritenService(Service):
     def __init__(self,node):
         super().__init__(node)
@@ -82,6 +81,7 @@ class WritenService(Service):
                 ans = owner.add_tags_to_file(file, tag_list,len, content)
                 print('ans_for_service: ', ans)
                 if ans['state']=='Error':
+                    print('ams[message]:',ans['message'])
                     raise Exception(ans['message'])
 
         else:
