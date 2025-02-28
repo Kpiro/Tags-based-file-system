@@ -5,11 +5,13 @@ from chord_node_reference import ChordNodeReference
 from utils_server import *
 from const import * 
 import time
-from data_base import FileDataBase,TagDataBase
-import base64
+from data_manager import DataManager
+main_dir = "./Data_base"
+import os
+
 class ChordNode:
     def __init__(self, ip: str, port: int = DEFAULT_NODE_PORT, m: int = 7):
-        self.id = calculate_hash(f'{ip}:{str(port)}', m)
+        self.id = calculate_hash(ip, m)
         self.ip = ip
         self.port = port
         self.ref = ChordNodeReference(self.ip, self.port)
@@ -18,14 +20,8 @@ class ChordNode:
         self.pred: ChordNodeReference = None  # Nodo predecesor
         self.m = m # Número de bits
         self.finger_table = [self.ref]*self.m  # Tabla de finger
-        self.my_files = FileDataBase(self.id)
-        self.pred_files = FileDataBase(self.pred.id)
-        self.succ_files = FileDataBase(self.succ.id)
-
-        self.my_tags = TagDataBase(self.id)
-        self.pred_tags = TagDataBase(self.pred.id)
-        self.succ_tags = TagDataBase(self.succ.id)
         self.next = 0  # Finger table index to fix next
+        self.data_manager = DataManager(self.ip)
 
         # Start threads
         threading.Thread(target=self.stabilize, daemon=True).start()
@@ -64,13 +60,47 @@ class ChordNode:
             if self.pred is None:
                 self.pred = node
                 self.predpred = node.pred
+                pull_socket = get_socket(node.ip)
+                pull_socket.sendall(f'{PUSH_MY_INFO}'.encode('utf-8'))
+                self.data_manager.pull_data(owner_info=PRED_INFO,clean_info=True,conn=pull_socket)
+                pull_socket.close()
                 
             # Check node still exists
             elif node.check_node():
                 # Check if node is between my predecessor and me
-                if inbetween(node.id, self.pred.id, self.id):
+                if is_between(node.id, self.pred.id, self.id):
                     self.predpred = self.pred
                     self.pred = node
+
+                    # Cuando entra un nodo entre mi predecesor y yo
+                    # Delegar al nuevo nodo la información que ya no me pertenece
+                    self.data_manager.delegate_data(self.pred.ip)
+
+                    # 
+                    pull_socket = get_socket(node.ip)
+                    pull_socket.sendall(f'{PUSH_MY_INFO}'.encode('utf-8'))
+                    self.data_manager.pull_data(owner_info=PRED_INFO,clean_info=True,conn=pull_socket)
+                    pull_socket.close()
+
+                    push_socket = get_socket(self.pred.ip)
+                    push_socket.sendall(f'{PULL_PRED_INFO}'.encode('utf-8'))
+                    resp = push_socket.recv(1024).decode('utf-8')
+                    if resp != 'OK':
+                        raise Exception("ACK negativo")
+                    self.data_manager.push_data(owner_info=MY_INFO,clean_info=False,conn=push_socket)
+                    push_socket.close()
+
+                    push_socket = get_socket(self.succ.ip)
+                    push_socket.sendall(f'{PULL_SUCC_INFO}'.encode('utf-8'))
+                    resp = push_socket.recv(1024).decode('utf-8')
+                    if resp != 'OK':
+                        raise Exception("ACK negativo")
+                    self.data_manager.push_data(owner_info=MY_INFO,clean_info=False,conn=push_socket)
+                    push_socket.close()
+
+
+
+                    
         print(f"[*] end act...")
     
     def reverse_notify(self, node: 'ChordNodeReference'):
@@ -83,6 +113,29 @@ class ChordNode:
         self.succ = node
         self.pred = node
         self.predpred = self.ref
+
+        self.data_manager.delegate_data(self.pred.ip)
+
+        swap_socket = get_socket(node.ip)
+        swap_socket.sendall(f'{PUSH_MY_INFO}'.encode('utf-8'))
+        self.data_manager.pull_data(owner_info=PRED_INFO,clean_info=True,conn=swap_socket)
+
+        swap_socket.sendall(f'{PUSH_MY_INFO}'.encode('utf-8'))
+        self.data_manager.pull_data(owner_info=SUCC_INFO,clean_info=True,conn=swap_socket)
+
+        swap_socket.sendall(f'{PULL_PRED_INFO}'.encode('utf-8'))
+        resp = swap_socket.recv(1024).decode('utf-8')
+        if resp != 'OK':
+            raise Exception("ACK negativo")
+        self.data_manager.push_data(owner_info=MY_INFO,clean_info=False,conn=swap_socket)
+
+        swap_socket.sendall(f'{PULL_SUCC_INFO}'.encode('utf-8'))
+        resp = swap_socket.recv(1024).decode('utf-8')
+        if resp != 'OK':
+            raise Exception("ACK negativo")
+        self.data_manager.push_data(owner_info=MY_INFO,clean_info=False,conn=swap_socket)
+
+        swap_socket.close()
 
         print(f"[*] end act...")
     
@@ -130,8 +183,13 @@ class ChordNode:
                             # Setearlo si no es el mismo
                             if x.id != self.succ.id:
                                 self.succ = x
-                                # self.update_replication(False, True, False, False)
-                        
+
+                                # Actualizar la información de x en self.rep_succ, porque self cambió de sucesor
+                                pull_socket = get_socket(x.ip)
+                                pull_socket.sendall(f'{PUSH_MY_INFO}'.encode('utf-8'))
+                                self.data_manager.pull_data(owner_info=SUCC_INFO, clean_info=True,conn=pull_socket)
+                                pull_socket.close()
+
                         # Notify mi successor
                         self.succ.notify(self.ref)
 
@@ -176,6 +234,7 @@ class ChordNode:
             try:
                 if self.pred and not self.pred.check_node():
                     print("[-] Predecesor failed")
+                    two_nodes_failed = False
 
                     if self.predpred.check_node():
                         self.pred = self.predpred
@@ -184,14 +243,46 @@ class ChordNode:
                     else:
                         self.pred = self.find_pred(self.predpred.id)
                         self.predpred = self.pred.pred
+                        two_nodes_failed = True
 
                     if self.pred.id == self.id:
                         self.succ = self.ref
                         self.pred = None
                         self.predpred = None
+
+                        if two_nodes_failed:
+                            self.data_manager.assume_data(assume_predpred=self.ip)
+                        else:
+                            self.data_manager.assume_data()
                         continue
+
                     
-                    self.pred.reverse_notify(self.ref)             
+                    self.pred.reverse_notify(self.ref)    
+
+                    if two_nodes_failed:
+                        self.data_manager.assume_data(assume_predpred=self.pred.ip) 
+                    else:
+                        self.data_manager.assume_data() 
+
+                    swap_socket = get_socket(self.pred.ip)
+                    swap_socket.sendall(f'{PUSH_MY_INFO}'.encode('utf-8'))
+                    self.data_manager.pull_data(owner_info=PRED_INFO,clean_info=True,conn=swap_socket) 
+                    
+                    swap_socket.sendall(f'{PULL_SUCC_INFO}'.encode('utf-8'))
+                    resp = swap_socket.recv(1024).decode('utf-8')
+                    if resp != 'OK':
+                        raise Exception("ACK negativo")
+                    self.data_manager.push_data(owner_info=MY_INFO,clean_info=False,conn=swap_socket)
+                    swap_socket.close()
+
+                    push_socket = get_socket(self.succ.ip)
+                    push_socket.sendall(f'{PULL_PRED_INFO}'.encode('utf-8'))
+                    resp = push_socket.recv(1024).decode('utf-8')
+                    if resp != 'OK':
+                        raise Exception("ACK negativo")
+                    self.data_manager.push_data(owner_info=MY_INFO,clean_info=False,conn=push_socket)
+                    push_socket.close()
+
 
             except Exception as e:
                 self.pred = None
@@ -226,14 +317,17 @@ class ChordNode:
         elif option == NOTIFY:
             ip = data[2]
             self.notify(ChordNodeReference(ip, self.port))
+            resp = {'state':'OK'}
 
         elif option == REVERSE_NOTIFY:
             ip = data[2]
             self.reverse_notify(ChordNodeReference(ip, self.port))
+            resp = {'state':'OK'}
 
         elif option == NOT_ALONE_NOTIFY:
             ip = data[2]
             self.not_alone_notify(ChordNodeReference(ip, self.port))
+            resp = {'state':'OK'}
 
         elif option == CHECK_NODE:
             node = self.ref
@@ -242,37 +336,28 @@ class ChordNode:
         elif option == ADD_TAGS_TO_FILE:
             file_name = data[1]
             tag_names = json.loads(data[2].replace("'", '"'))
-            self.my_files.add_values_to_key(file_name,tag_names)
+            self.data_manager.add_tags_to_my_file(file_name,tag_names)
             resp = {'state':'OK'}
 
         elif option == ADD_TAGS_TO_FILE_UPLOAD:
             file_name = data[1]
-            file_len = int(data[2])
+            file_size = int(data[2])
             tag_names = json.loads(data[3].replace("'", '"'))
 
-            if self.my_files.check_key(file_name):
+            if self.data_manager.check_my_file(file_name):
                 resp = {'state': 'Error', 'message': f'File "{file_name}" is already in database'}
             
             else:
-                self.my_files.add_values_to_key(file_name,tag_names)
+                self.data_manager.add_tags_to_my_file(file_name,tag_names)
                 conn.sendall('OK'.encode('utf-8'))
-
-                file_data = bytearray()
-                received_size = 0
-                while received_size < file_len:
-                    data = conn.recv(1024)  # Recibir 1024 bytes
-                    if not data:
-                        break
-                    file_data.extend(data)  # Agregar los datos a la variable
-                    received_size += len(data)
-                    print('ya va a hacer upload')
-                self.my_files.upload_file(file_name,file_data)
+                file_data = recv_file(file_size,conn)
+                self.data_manager.upload_my_file(file_name,file_data)
                 print('hizo upload')
                 resp = {'state':'OK'}
 
         elif option == DOWNLOAD_FILE:
             file_name = data[1]
-            file_content,file_size = self.my_files.download_file(file_name)
+            file_content,file_size = self.data_manager.delete_my_file(file_name)
             conn.sendall(str(file_size).encode('utf-8'))
             response = conn.recv(1024).decode('utf-8')
             if response == 'OK':
@@ -281,37 +366,37 @@ class ChordNode:
         elif option == ADD_FILES_TO_TAG:
             tag_name = data[1]
             file_names = json.loads(data[2].replace("'", '"'))
-            self.my_tags.add_values_to_key(tag_name,file_names)
+            self.data_manager.add_files_to_my_tag(tag_name,file_names)
             resp = {'state':'OK'}
 
         elif option == GET_FILES_FROM_TAG:
             tag_name = data[1]
-            files = self.my_tags.get_values(tag_name)
+            files = self.data_manager.get_files_from_my_tag(tag_name)
             resp = {'state':'OK','files':files}
 
         elif option == DELETE_FILE:
             file_name = data[1]
-            self.my_files.delete_key(file_name)
+            self.data_manager.delete_my_file(file_name)
             resp = {'state':'OK'}
 
         elif option == GET_TAGS_FROM_FILE:
             file_name = data[1]
-            tags = self.my_files.get_values(file_name)
+            tags = self.data_manager.get_tags_from_my_file(file_name)
             resp = {'state':'OK','tags':tags}
                 
         elif option == DELETE_FILES_FROM_TAG:
             tag_name = data[1]
             file_list = json.loads(data[2].replace("'", '"'))
-            self.my_tags.remove_values_from_key(tag_name,file_list)
+            self.data_manager.remove_files_from_my_tag(tag_name,file_list)
             resp = {'state':'OK'}
         elif option == DELETE_TAGS_FROM_FILE:
             file_name = data[1]
             tag_list = json.loads(data[2].replace("'", '"'))
-            self.my_files.remove_values_from_key(file_name,tag_list)
+            self.data_manager.remove_tags_from_my_file(file_name,tag_list)
             resp = {'state':'OK'}
         elif option == GET_ALL_FILES:
-            files = self.my_files.get_all_keys()
-            tags = self.my_files.get_all_values()
+            files = self.data_manager.get_all_my_files()
+            tags = self.data_manager.get_all_tags_in_my_files()
             resp = {'state':'OK','files':files,'tags':tags}
 
 

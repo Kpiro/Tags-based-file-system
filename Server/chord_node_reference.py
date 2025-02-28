@@ -2,11 +2,11 @@ import json
 import socket
 from typing import List
 from const import *
-from utils_server import calculate_hash
+from utils_server import calculate_hash, recv_file
 
 class ChordNodeReference:
-    def __init__(self, ip: str, port: int = 8001):
-        self.id = calculate_hash(f'{ip}:{port}')
+    def __init__(self, ip: str, port: int = DEFAULT_NODE_PORT):
+        self.id = calculate_hash(f'{ip}')
         self.ip = ip
         self.port = port
 
@@ -121,15 +121,7 @@ class ChordNodeReference:
                 file_size = int(s.recv(1024).decode('utf-8'))
                 s.send('OK'.encode('utf-8'))
                 # Variable para almacenar el archivo en memoria
-                file_data = bytearray()  # Usamos bytearray para eficiencia en concatenación
-                # Recibir el archivo en bloques
-                received_size = 0
-                while received_size < file_size:
-                    data = s.recv(1024)  # Recibir 1024 bytes
-                    if not data:
-                        break
-                    file_data.extend(data)  # Agregar los datos a la variable
-                    received_size += len(data)
+                file_data = recv_file(file_size,s)
                 return {'state':'OK','content':file_data,'size':file_size}
         except Exception as e:
             return {'state':'Error','message':'🔌Connection Problem'}

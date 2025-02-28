@@ -106,38 +106,7 @@ class Server:
             return self.node.add_tags(tag_query,tag_list)
         elif request == 'add-files':
             client_socket.send('OK'.encode('utf-8'))
-            file_list = []
-            len_list = []
-            content_list = []
-            file_name =''
-            while True:
-                file_info = client_socket.recv(1024).decode('utf-8')
-                client_socket.send('OK'.encode('utf-8'))
-                if file_info == 'end_file':
-                    break
-                
-                file_info = file_info.split(',')
-                file_name = file_info[0]
-                file_size = int(file_info[1])
-                file_list.append(file_name)
-                len_list.append(file_size)
-                # Variable para almacenar el archivo en memoria
-                file_data = bytearray()  # Usamos bytearray para eficiencia en concatenación
-
-                # Recibir el archivo en bloques
-                received_size = 0
-                print('file_size_server: ',file_size )
-                while received_size < file_size:
-                    print('received_size: ',received_size)
-                    data = client_socket.recv(1024)  # Recibir 1024 bytes
-                    if not data:
-                        break
-                    file_data.extend(data)  # Agregar los datos a la variable
-                    received_size += len(data)
-                content_list.append(file_data)
-
-                client_socket.send('OK'.encode('utf-8'))
-
+            file_list, len_list, content_list = recv_multiple_files(client_socket)
             tag_arg = client_socket.recv(1024).decode('utf-8')
             tag_list = [tag.strip() for tag in tag_arg.split(',')]
             return self.node.add_files(file_list,tag_list,len_list,content_list)
@@ -161,11 +130,6 @@ class Server:
             client_socket.send('OK'.encode('utf-8'))
             tag_query = [query.strip() for query in client_socket.recv(1024).decode('utf-8').split(',')]
             file_names, file_sizes, file_contents = self.node.download_files(tag_query)
-
-            print('ya hizo esto')
-            print(file_names)
-            print(file_sizes)
-            print(file_contents)
             for file_name, file_size, file_content in zip(file_names, file_sizes,file_contents):
                 client_socket.send(f'{file_name},{file_size}'.encode('utf-8'))
                 response = client_socket.recv(1024).decode('utf-8')

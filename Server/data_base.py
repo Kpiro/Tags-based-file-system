@@ -1,22 +1,28 @@
 import os
 import json
-main_dir = "./Data_base"
 from utils_server import auto_save
 
 class DataBase:
-    def __init__(self,node_id,name) -> None:
-        self.server_dir = os.path.join(main_dir,str(node_id))
-        self.json_dir = os.path.join(self.server_dir,'Jsons')
-        self.json_path = os.path.join(self.json_dir,name)
+    def __init__(self,server_dir,name,type_data) -> None:
+        self.main_dir = os.path.join(server_dir,str(name))
+        self.json_dir = os.path.join(self.main_dir,'Jsons')
+        self.json_path = os.path.join(self.json_dir,type_data)
         self.create_dir()
         self.data:dict[str,set] 
         self.load_data_base()
-    
+        
+    @auto_save
+    def merge_data(self,other_data):
+        self.data.update(other_data)
+
     def create_dir(self):
-        os.makedirs(self.server_dir,exist_ok=True)
+        os.makedirs(self.main_dir,exist_ok=True)
         os.makedirs(self.json_dir,exist_ok=True)
 
-    
+    @auto_save
+    def clear_data_base(self):
+        self.data = {}
+
     def load_data_base(self):
         try:
             with open(self.json_path, "r", encoding="utf-8") as file:
@@ -69,9 +75,9 @@ class DataBase:
         return list(self.data.values())
 
 class FileDataBase(DataBase):
-    def __init__(self,node_id) -> None:
-        super().__init__(node_id,name='files.json')
-        self.storage_dir = os.path.join(self.server_dir,'Storage')
+    def __init__(self,name) -> None:
+        super().__init__(name,type_data='files.json')
+        self.storage_dir = os.path.join(self.main_dir,'Storage')
         os.makedirs(self.storage_dir,exist_ok=True)
 
     def delete_file_from_storage(self,key):
@@ -82,6 +88,12 @@ class FileDataBase(DataBase):
             return False
         else:
             return True
+
+    def clear_data_base(self):
+        super().clear_data_base()
+        # Recorre todos los archivos en la carpeta
+        for file in os.listdir(self.storage_dir):
+            self.delete_file_from_storage(file)
 
     @auto_save
     def delete_key(self, key):
@@ -113,6 +125,6 @@ class FileDataBase(DataBase):
 
 
 class TagDataBase(DataBase):
-    def __init__(self,node_id) -> None:
-        super().__init__(node_id,name='tags.json')
+    def __init__(self,name) -> None:
+        super().__init__(name,type_data='tags.json')
 
