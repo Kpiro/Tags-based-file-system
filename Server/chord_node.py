@@ -350,6 +350,10 @@ class ChordNode:
             file_name = data[1]
             tag_names = json.loads(data[2].replace("'", '"'))
             self.data_manager.add_tags_to_my_file(file_name,tag_names)
+            
+            notify_neighbor(op=HANDLE_ADD_TAGS_TO_FILE_PRED, ip=self.succ.ip, obj_name=file_name, obj_list=tag_names)
+            notify_neighbor(op=HANDLE_ADD_TAGS_TO_FILE_SUCC, ip=self.pred.ip, obj_name=file_name, obj_list=tag_names)
+
             resp = {'state':'OK'}
 
         elif option == ADD_TAGS_TO_FILE_UPLOAD:
@@ -366,6 +370,12 @@ class ChordNode:
                 file_data = recv_file(file_size,conn)
                 self.data_manager.upload_my_file(file_name,file_data)
                 print('hizo upload')
+
+                notify_neighbor(op=HANDLE_ADD_TAGS_TO_FILE_PRED, ip=self.succ.ip, obj_name=file_name, obj_list=tag_names)
+                notify_neighbor(op=HANDLE_ADD_TAGS_TO_FILE_SUCC, ip=self.pred.ip, obj_name=file_name, obj_list=tag_names)
+                notify_neighbor(op=HANDLE_UPLOAD_PRED, ip=self.succ.ip, obj_name=file_name, obj_list=None, content=file_data)
+                notify_neighbor(op=HANDLE_UPLOAD_SUCC, ip=self.pred.ip, obj_name=file_name, obj_list=None, content=file_data)
+
                 resp = {'state':'OK'}
 
         elif option == DOWNLOAD_FILE:
@@ -380,6 +390,10 @@ class ChordNode:
             tag_name = data[1]
             file_names = json.loads(data[2].replace("'", '"'))
             self.data_manager.add_files_to_my_tag(tag_name,file_names)
+
+            notify_neighbor(op=HANDLE_ADD_FILES_TO_TAG_PRED, ip=self.succ.ip, obj_name=tag_name, obj_list=file_names)
+            notify_neighbor(op=HANDLE_ADD_FILES_TO_TAG_SUCC, ip=self.pred.ip, obj_name=tag_name, obj_list=file_names)
+
             resp = {'state':'OK'}
 
         elif option == GET_FILES_FROM_TAG:
@@ -390,6 +404,10 @@ class ChordNode:
         elif option == DELETE_FILE:
             file_name = data[1]
             self.data_manager.delete_my_file(file_name)
+
+            notify_neighbor(op=HANDLE_DELETE_FILE_PRED, ip=self.succ.ip, obj_name=file_name)
+            notify_neighbor(op=HANDLE_DELETE_FILE_SUCC, ip=self.pred.ip, obj_name=file_name)
+
             resp = {'state':'OK'}
 
         elif option == GET_TAGS_FROM_FILE:
@@ -401,11 +419,19 @@ class ChordNode:
             tag_name = data[1]
             file_list = json.loads(data[2].replace("'", '"'))
             self.data_manager.remove_files_from_my_tag(tag_name,file_list)
+
+            notify_neighbor(op=HANDLE_REMOVE_FILES_FROM_TAG_PRED, ip=self.succ.ip, obj_name=tag_name, obj_list=file_list)
+            notify_neighbor(op=HANDLE_REMOVE_FILES_FROM_TAG_SUCC, ip=self.pred.ip, obj_name=tag_name, obj_list=file_list)
+
             resp = {'state':'OK'}
         elif option == DELETE_TAGS_FROM_FILE:
             file_name = data[1]
             tag_list = json.loads(data[2].replace("'", '"'))
             self.data_manager.remove_tags_from_my_file(file_name,tag_list)
+
+            notify_neighbor(op=HANDLE_REMOVE_TAGS_FROM_FILE_PRED, ip=self.succ.ip, obj_name=file_name, obj_list=tag_list)
+            notify_neighbor(op=HANDLE_REMOVE_TAGS_FROM_FILE_SUCC, ip=self.pred.ip, obj_name=file_name, obj_list=tag_list)
+
             resp = {'state':'OK'}
         elif option == GET_ALL_FILES:
             files = self.data_manager.get_all_my_files()

@@ -2,7 +2,7 @@ from data_base import FileDataBase, TagDataBase
 import os
 import socket
 import json
-from utils_server import recv_multiple_files,send_multiple_files, calculate_hash, is_between, to_json_list, to_json_set
+from utils_server import recv_multiple_files,send_multiple_files, calculate_hash, is_between, to_json_list, to_json_set, update_neighbor_data, recv_file
 from const import *
 import threading
 
@@ -54,19 +54,19 @@ class DataManager:
     def add_files_to_my_tag(self,tag,files):
         self.my_tags.add_values_to_key(tag,files)
 
-    # def add_tags_to_pred_file(self,file,tags):
-    #     self.pred_files.add_values_to_key(file,tags)
+    def add_tags_to_pred_file(self,file,tags):
+        self.pred_files.add_values_to_key(file,tags)
     
-    # def add_tags_to_succ_file(self,file,tags):
-    #     self.succ_files.add_values_to_key(file,tags)
+    def add_tags_to_succ_file(self,file,tags):
+        self.succ_files.add_values_to_key(file,tags)
 
 
 
-    # def add_files_to_pred_tag(self,tag,files):
-    #     self.pred_tags.add_values_to_key(tag,files)
+    def add_files_to_pred_tag(self,tag,files):
+        self.pred_tags.add_values_to_key(tag,files)
 
-    # def add_files_to_succ_tag(self,tag,files):
-    #     self.succ_tags.add_values_to_key(tag,files)
+    def add_files_to_succ_tag(self,tag,files):
+        self.succ_tags.add_values_to_key(tag,files)
 
 
     # REMOVE FILES FROM TAG OR TAGS FROM FILE
@@ -78,17 +78,17 @@ class DataManager:
         self.my_tags.remove_values_from_key(tag,files)
 
 
-    # def remove_tags_from_pred_file(self,file,tags):
-    #     self.pred_files.remove_values_from_key(file,tags)
+    def remove_tags_from_pred_file(self,file,tags):
+        self.pred_files.remove_values_from_key(file,tags)
     
-    # def remove_tags_from_succ_file(self,file,tags):
-    #     self.succ_files.remove_values_from_key(file,tags)
+    def remove_tags_from_succ_file(self,file,tags):
+        self.succ_files.remove_values_from_key(file,tags)
 
-    # def remove_files_from_pred_tag(self,tag,files):
-    #     self.pred_tags.remove_values_from_key(tag,files)
+    def remove_files_from_pred_tag(self,tag,files):
+        self.pred_tags.remove_values_from_key(tag,files)
 
-    # def remove_files_from_succ_tag(self,tag,files):
-    #     self.succ_tags.remove_values_from_key(tag,files)
+    def remove_files_from_succ_tag(self,tag,files):
+        self.succ_tags.remove_values_from_key(tag,files)
 
     # DELETE FILE OR TAG
         
@@ -97,19 +97,19 @@ class DataManager:
     def delete_my_tag(self,tag):
         self.my_tags.delete_key(tag)
 
-    # def delete_pred_file(self,file):
-    #     self.pred_files.delete_key(file)
+    def delete_pred_file(self,file):
+        self.pred_files.delete_key(file)
 
-    # def delete_succ_file(self,file):
-    #     self.succ_files.delete_key(file)
+    def delete_succ_file(self,file):
+        self.succ_files.delete_key(file)
 
 
 
-    # def delete_pred_tag(self,tag):
-    #     self.pred_tags.delete_key(tag)
+    def delete_pred_tag(self,tag):
+        self.pred_tags.delete_key(tag)
 
-    # def delete_succ_tag(self,tag):
-    #     self.succ_tags.delete_key(tag)
+    def delete_succ_tag(self,tag):
+        self.succ_tags.delete_key(tag)
 
     # CHECK FILE OR TAG
         
@@ -321,6 +321,7 @@ class DataManager:
 
     def handle_request(self, conn, request):
         # Send all my stored data
+        
         if request == f"{PUSH_MY_INFO}":
             print('😍 😍 😍 lindo')
             self.push_data(owner_info=MY_INFO,clean_info=False,conn = conn)
@@ -338,4 +339,68 @@ class DataManager:
         elif request == f"{PULL_SUCC_INFO}":
             conn.sendall('OK'.encode('utf-8'))
             self.pull_data(owner_info=SUCC_INFO,clean_info=True,conn=conn)
+
+        # UPDATE REPLICATIONS
+        elif request == f"{HANDLE_ADD_FILES_TO_TAG_PRED}":
+            conn.sendall('OK'.encode('utf-8'))
+            update_neighbor_data(update_function=self.add_files_to_pred_tag,conn=conn)
+        elif request == f"{HANDLE_ADD_FILES_TO_TAG_SUCC}":
+            conn.sendall('OK'.encode('utf-8'))
+            update_neighbor_data(update_function=self.add_files_to_succ_tag,conn=conn)
+        
+        elif request == f"{HANDLE_ADD_TAGS_TO_FILE_PRED}":
+            conn.sendall('OK'.encode('utf-8'))
+            update_neighbor_data(update_function=self.add_tags_to_pred_file,conn=conn)
+        elif request == f"{HANDLE_ADD_TAGS_TO_FILE_SUCC}":
+            conn.sendall('OK'.encode('utf-8'))
+            update_neighbor_data(update_function=self.add_tags_to_succ_file,conn=conn)
+
+        elif request == f"{HANDLE_REMOVE_TAGS_FROM_FILE_PRED}":
+            conn.sendall('OK'.encode('utf-8'))
+            update_neighbor_data(update_function=self.remove_tags_from_pred_file,conn=conn)
+        elif request == f"{HANDLE_REMOVE_TAGS_FROM_FILE_SUCC}":
+            conn.sendall('OK'.encode('utf-8'))
+            update_neighbor_data(update_function=self.remove_tags_from_succ_file,conn=conn)
+
+        elif request == f"{HANDLE_REMOVE_FILES_FROM_TAG_PRED}":
+            conn.sendall('OK'.encode('utf-8'))
+            update_neighbor_data(update_function=self.remove_files_from_pred_tag,conn=conn)
+        elif request == f"{HANDLE_REMOVE_FILES_FROM_TAG_SUCC}":
+            conn.sendall('OK'.encode('utf-8'))
+            update_neighbor_data(update_function=self.remove_files_from_succ_tag,conn=conn)
+
+        elif request == f"{HANDLE_DELETE_FILE_PRED}":
+            conn.sendall('OK'.encode('utf-8'))
+            update_neighbor_data(update_function=self.delete_pred_file,conn=conn,two_params=False)
+        elif request == f"{HANDLE_DELETE_FILE_SUCC}":
+            conn.sendall('OK'.encode('utf-8'))
+            update_neighbor_data(update_function=self.delete_succ_file,conn=conn,two_params=False)
+
+        elif request == f"{HANDLE_DELETE_TAG_PRED}":
+            conn.sendall('OK'.encode('utf-8'))
+            update_neighbor_data(update_function=self.delete_pred_tag,conn=conn,two_params=False)
+
+        elif request == f"{HANDLE_DELETE_TAG_SUCC}":
+            conn.sendall('OK'.encode('utf-8'))
+            update_neighbor_data(update_function=self.delete_succ_tag,conn=conn,two_params=False)
+
+        elif request == f"{HANDLE_UPLOAD_PRED}":
+            conn.sendall('OK'.encode('utf-8'))
+            file_name,file_size = conn.recv(1024).decode('utf-8').split(',')
+            conn.send('OK'.encode('utf-8'))
+            file_content = recv_file(int(file_size),conn)
+            self.pred_files.upload_file(file_name,file_content)
+            conn.sendall('OK'.encode('utf-8'))
+
+        elif request == f"{HANDLE_UPLOAD_SUCC}":
+            conn.sendall('OK'.encode('utf-8'))
+            file_name,file_size = conn.recv(1024).decode('utf-8').split(',')
+            conn.send('OK'.encode('utf-8'))
+            file_content = recv_file(int(file_size),conn)
+            self.succ_files.upload_file(file_name,file_content)
+            conn.sendall('OK'.encode('utf-8'))
+
+
+
+        
      
