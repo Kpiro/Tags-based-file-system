@@ -1,60 +1,82 @@
 import struct
+import threading
 from colorama import Fore, Back, Style, init
 import socket
 import json
 from utils_client import *
 import os
+
 END_FILE = 30
 END_FILES = 31
 # Configuración del grupo multicast
 MCAST_GRP = '224.0.0.1'
 MCAST_PORT = 10000
-
-# Inicializa colorama
-init(autoreset=True)
+DEFAULT_CLIENT_PORT = 10002
 
 class Client: 
 
     def __init__(self):
-        # self.storage_dir = "/app/Client/Storage"
-        self.storage_dir = "./Storage"
-        os.makedirs(self.storage_dir,exist_ok=True)
-        # Descubrir el servidor mediante multicast
-        # server_info = self.discover_server()
-        # if server_info is None:
-        #     print("No se encontró ningún servidor mediante multicast.")
-        #     exit(1)
-        # else:
-        #     print(f"Conectando al servidor en {server_info[0]}:{server_info[1]}")
-        self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.client_socket.connect(('127.0.0.1', 8005))
+        self.storage_dir = "/app/Client/Storage"
+        os.makedirs(self.storage_dir, exist_ok=True)
+        self.local_ip = socket.gethostbyname(socket.gethostname())
+        self.client_socket = None
+
+        threading.Thread(target=self.discover_server).start()  
+        threading.Thread(target=self.send_message_multicast).start()
 
     def discover_server(self):
+        # Crear un socket TCP para recibir respuesta de servidores
+        tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        tcp_socket.bind(('', DEFAULT_CLIENT_PORT))  
+        tcp_socket.listen(5)
+
+        print(f"[*] Cliente escuchando en {self.local_ip}:{DEFAULT_CLIENT_PORT}")
+
+        # Esperar conexiones TCP de servidores
+        while True:
+            try:
+                conn, addr = tcp_socket.accept()
+                tcp_socket.settimeout(5)  # Espera un tiempo por respuestas
+                data = conn.recv(1024).decode('utf-8')
+                server_ip, server_port = data.split(',')
+                print(f"Servidor encontrado: {server_ip}:{server_port}")
+                conn.close()
+                break
+            except socket.timeout:
+                print(f'[*] No se pudo conectar a ningún servidor')
+                break 
+
+        # Conectar al primer servidor encontrado
+        print(f"Conectando al servidor en {server_ip}:{server_port}")
+        self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.client_socket.connect((server_ip, int(server_port)))
+
+        self.show_menu()
+        while True:
+            command = input("Enter a command: ")
+            client.parse_command(command)
+            if command == "exit":
+                print("🏃 Exiting...")
+                break
+
+    def send_message_multicast(self):
         """
-        Envía un mensaje de descubrimiento multicast para encontrar el servidor.
-        Retorna una tupla (ip, port) si se recibe respuesta o None si no.
+        Envía un mensaje multicast con la IP y puerto TCP del cliente.
         """
         try:
+            # Enviar mensaje multicast
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-            sock.settimeout(20)
+            sock.settimeout(5)
             ttl = struct.pack('b', 1)
             sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, ttl)
-            
-            msg = "DISCOVER_SERVER"
+
+            msg = f"DISCOVER_SERVER,{self.local_ip},{DEFAULT_CLIENT_PORT}"
             print("Enviando mensaje de descubrimiento multicast...")
             sock.sendto(msg.encode('utf-8'), (MCAST_GRP, MCAST_PORT))
-            
-            data, addr = sock.recvfrom(1024)
-            print(f'Data {data}')
-            response = data.decode('utf-8').strip()
-            ip, port = response.split(',')
-            return ip, int(port)
-        except socket.timeout:
-            print("No se recibió respuesta del descubrimiento multicast.")
-            return None
+
+            sock.close()
         except Exception as e:
             print("Error en multicast discovery:", e)
-            return None
 
     def show_menu(self):
         # Imprimir el menú con colores
@@ -117,7 +139,8 @@ class Client:
             params = [param.strip() for param in cmd_parts[1].split("--")]
             print('params: ',params)
         except:
-            print(InvalidCommandError(command))
+            # print(InvalidCommandError(command))
+            pass
         else:
             if cmd == "download":
                 response = self.send_request(cmd)
@@ -235,7 +258,6 @@ class Client:
                         print('Invalid')
                         return
 
-
             
 
         
@@ -243,11 +265,4 @@ class Client:
 
 if __name__ == "__main__":
     client = Client()
-    client.show_menu()
-    while True:
-        command = input("Enter a command: ")
-        client.parse_command(command)
-        if command == "exit":
-            print("🏃 Exiting...")
-            break
 

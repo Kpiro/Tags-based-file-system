@@ -17,7 +17,7 @@ class Server:
         self.node = GatewayNode(ip)
 
         # Iniciar hilo para responder descubrimientos multicast (para conexión cliente–servidor)
-        # threading.Thread(target=self.multicast_listener, daemon=True).start()
+        threading.Thread(target=self.multicast_listener, daemon=True).start()
         # Iniciar el servidor TCP para clientes (por ejemplo, en puerto DEFAULT_SERVER_PORT, ej. 8005)
         threading.Thread(target=self.start_server, args=(ip,port)).start()
         if known_node_ip:
@@ -27,34 +27,42 @@ class Server:
 
     def multicast_listener(self):
         """
-        Se une al grupo multicast para escuchar peticiones de descubrimiento de clientes.
-        Cuando recibe "DISCOVER_SERVER", responde con la IP y puerto (del servidor TCP de clientes).
+        Escucha mensajes multicast de clientes, luego se conecta a ellos vía TCP.
         """
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
         try:
             sock.bind(('', MCAST_PORT))
         except Exception as e:
-            print(f"Error al enlazar multicast listener en server: {e}")
+            print(f"Error al enlazar multicast: {e}")
             return
         
-        # Unirse al grupo multicast
         mreq = struct.pack("4sl", socket.inet_aton(MCAST_GRP), socket.INADDR_ANY)
         sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
 
         print(f"[*] Server multicast listener iniciado en {MCAST_GRP}:{MCAST_PORT}")
+
         while True:
             try:
                 data, addr = sock.recvfrom(1024)
-                print(f'Recibiendo data multicast {data}')
                 msg = data.decode('utf-8').strip()
-                if msg == "DISCOVER_SERVER":
-                    # Responde con la IP del servidor y el puerto de conexión a clientes (por ejemplo, DEFAULT_SERVER_PORT)
+                parts = msg.split(',')
+
+                if parts[0] == "DISCOVER_SERVER":
+                    client_ip = parts[1]
+                    print(f"[*] Descubrimiento recibido de {client_ip}:{DEFAULT_CLIENT_PORT}")
+
+                    # Conectarse al socket TCP del cliente
+                    tcp_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    tcp_sock.connect((client_ip, DEFAULT_CLIENT_PORT))
                     response = f"{self.ip},{DEFAULT_SERVER_PORT}"
-                    print(f"[*] Recibí DISCOVER_SERVER de {addr}. Respondiendo con {response}")
-                    sock.sendto(response.encode('utf-8'), addr)
+                    print(f'[*] Respondiendo con {response}')
+                    tcp_sock.send(response.encode('utf-8'))
+                    tcp_sock.close()
             except Exception as e:
-                print(f"Error en multicast listener del server: {e}")
+                tcp_sock.close()
+                print(f"Error en multicast listener: {e}")
 
     def start_server(self, ip, port = DEFAULT_SERVER_PORT):
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -151,8 +159,8 @@ class Server:
 
 if __name__ == "__main__":
     # Get ip from current server
-    # ip = socket.gethostbyname(socket.gethostname()) 
-    ip = "127.0.0.1"
+    ip = socket.gethostbyname(socket.gethostname()) 
+
     # First node case
     if len(sys.argv) == 1:
 
@@ -178,9 +186,3 @@ if __name__ == "__main__":
 
     else:
         raise Exception("Incorrect params")
-
-    
-
-
-    
-
