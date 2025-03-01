@@ -1,9 +1,37 @@
+import json
 import os
 import shutil
 from colorama import Fore, Style
 import hashlib
 from const import *
 import socket
+
+def notify_neighbor(op: int, ip: str, obj_name: str, obj_list: list = None, content = None):
+    sock = get_socket(ip)
+
+    sock.sendall(f'{op}'.encode('utf-8'))
+    resp = sock.recv(1024).decode('utf-8')
+    if resp != 'OK':
+        raise Exception ('ACK negative!')
+    
+    sock.sendall(obj_name.encode('utf-8'))
+    resp = sock.recv(1024).decode('utf-8')
+    if resp != 'OK':
+        raise Exception ('ACK negative!')
+    
+    if obj_list:
+        sock.sendall(json.dumps(obj_list).encode('utf-8'))
+        resp = sock.recv(1024).decode('utf-8')
+        if resp != 'OK':
+            raise Exception ('ACK negative!')
+        
+    if content:
+        sock.sendall(content)
+        resp = sock.recv(1024).decode('utf-8')
+        if resp != 'OK':
+            raise Exception ('ACK negative!')
+        
+    sock.close()
 
 def to_json_list(dict):
     return {key: list(value) for key, value in dict.items()}
