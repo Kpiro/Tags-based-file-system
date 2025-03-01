@@ -2,7 +2,7 @@ import json
 import socket
 from typing import List
 from const import *
-from utils_server import calculate_hash, recv_file
+from utils_server import calculate_hash, recv_file, remove_server_dir
 
 class ChordNodeReference:
     def __init__(self, ip: str, port: int = DEFAULT_NODE_PORT):
@@ -64,7 +64,7 @@ class ChordNodeReference:
     def check_node(self) -> bool:
         response = self._send_data(CHECK_NODE)
         if response['state']=='Error':
-            print(response['message'])
+            remove_server_dir(self.id)
             return False
         else:
             return True

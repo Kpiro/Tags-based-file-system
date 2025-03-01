@@ -114,27 +114,37 @@ class ChordNode:
         self.pred = node
         self.predpred = self.ref
 
+        print('😀😀😀 Delegando data')
         self.data_manager.delegate_data(self.pred.ip)
 
+        print(f'😀😀😀 ID:{self.id} pulleando info de ID:{node.id} en su rep_pred')
         swap_socket = get_socket(node.ip)
         swap_socket.sendall(f'{PUSH_MY_INFO}'.encode('utf-8'))
         self.data_manager.pull_data(owner_info=PRED_INFO,clean_info=True,conn=swap_socket)
+        swap_socket.close()
 
+        print(f'😀😀😀 ID:{self.id} pulleando info de ID:{node.id} en su rep_succ')
+        swap_socket = get_socket(node.ip)
         swap_socket.sendall(f'{PUSH_MY_INFO}'.encode('utf-8'))
         self.data_manager.pull_data(owner_info=SUCC_INFO,clean_info=True,conn=swap_socket)
+        swap_socket.close()
 
+        print(f'😀😀😀 ID:{self.id} pusheando info a ID:{self.id} en su rep_pred')
+        swap_socket = get_socket(node.ip)
         swap_socket.sendall(f'{PULL_PRED_INFO}'.encode('utf-8'))
         resp = swap_socket.recv(1024).decode('utf-8')
         if resp != 'OK':
             raise Exception("ACK negativo")
         self.data_manager.push_data(owner_info=MY_INFO,clean_info=False,conn=swap_socket)
+        swap_socket.close()
 
+        print(f'😀😀😀 ID:{self.id} pusheando info a ID:{self.id} en su rep_succ')
+        swap_socket = get_socket(node.ip)
         swap_socket.sendall(f'{PULL_SUCC_INFO}'.encode('utf-8'))
         resp = swap_socket.recv(1024).decode('utf-8')
         if resp != 'OK':
             raise Exception("ACK negativo")
         self.data_manager.push_data(owner_info=MY_INFO,clean_info=False,conn=swap_socket)
-
         swap_socket.close()
 
         print(f"[*] end act...")
@@ -222,7 +232,7 @@ class ChordNode:
                     self.next += 1
                     if self.next >= self.m:
                         self.next = 0
-                    self.finger[self.next] = self.lookup((self.id + 2 ** self.next) % 2 ** self.m)
+                    self.finger_table[self.next] = self.lookup((self.id + 2 ** self.next) % 2 ** self.m)
                 except Exception as e:
                     pass
             time.sleep(5)
@@ -331,7 +341,10 @@ class ChordNode:
 
         elif option == CHECK_NODE:
             node = self.ref
-            resp = {'state':'OK','id':node.id, 'ip': node.ip}
+            if node:
+                resp = {'state':'OK','id':node.id, 'ip': node.ip}
+            else:
+                resp = {'state': 'Error'}
 
         elif option == ADD_TAGS_TO_FILE:
             file_name = data[1]
@@ -357,7 +370,7 @@ class ChordNode:
 
         elif option == DOWNLOAD_FILE:
             file_name = data[1]
-            file_content,file_size = self.data_manager.delete_my_file(file_name)
+            file_content,file_size = self.data_manager.download_my_file(file_name)
             conn.sendall(str(file_size).encode('utf-8'))
             response = conn.recv(1024).decode('utf-8')
             if response == 'OK':

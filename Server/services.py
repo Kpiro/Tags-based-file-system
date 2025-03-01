@@ -13,20 +13,29 @@ class Service:
 class ReadService(Service):
     def __init__(self,node):
         super().__init__(node)
-
-    def retrieve_files(self,tag_list):
+    
+    def retrieve_files(self, tag_list):
         tags_owners = self.find_owner(tag_list)
-        files = set()
+        print('💩💩 tags_owners', tags_owners)
+        
+        files = None  # Iniciar en None para saber si es la primera iteración
+        
         for owner, tag in zip(tags_owners, tag_list):
             ans = owner.get_files_from_tag(tag)
-            print('get_files_from_tag: ',ans)
-            if ans['state']=='Error':
+            print('get_files_from_tag: ', ans)
+            
+            if ans['state'] == 'Error':
                 raise Exception(ans['message'])
             else:
                 print(type(ans['files']))
-                files.update(set(ans['files']))
-        print('list: ',list(files))
-        return list(files)
+                file_set = set(ans['files'])
+                
+                if files is None:
+                    files = file_set  # Inicializa con el primer conjunto
+                else:
+                    files = files.intersection(file_set)  # Intersección con el siguiente conjunto
+        
+        return list(files) if files is not None else []
     
     def retrieve_tags(self,file_list):
         files_owners = self.find_owner(file_list)
@@ -102,6 +111,7 @@ class WritenService(Service):
     
     def delete_files(self,file_list):
         file_owners = self.find_owner(file_list)
+        print(f'🤨🤨 file_owners {file_owners}')
         for owner, file in zip(file_owners, file_list):
             ans = owner.delete_file(file)
             if ans['state']=='Error':

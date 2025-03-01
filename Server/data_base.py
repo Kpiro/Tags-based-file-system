@@ -1,6 +1,6 @@
 import os
 import json
-from utils_server import auto_save
+from utils_server import auto_save, to_json_list, to_json_set
 
 class DataBase:
     def __init__(self,server_dir,name,type_data) -> None:
@@ -13,7 +13,7 @@ class DataBase:
         
     @auto_save
     def merge_data(self,other_data):
-        self.data.update(other_data)
+        self.data.update(to_json_set(other_data))
 
     def create_dir(self):
         os.makedirs(self.main_dir,exist_ok=True)
@@ -22,6 +22,9 @@ class DataBase:
     @auto_save
     def clear_data_base(self):
         self.data = {}
+
+    def load_data(self):
+        return to_json_list(self.data)
 
     def load_data_base(self):
         try:
@@ -51,8 +54,8 @@ class DataBase:
             for value in values:
                 self.data[key].remove(value)
 
-        if len(self.data[key])==0:
-            del self.data[key]
+            if len(self.data[key])==0:
+                del self.data[key]
 
     @auto_save
     def delete_key(self,key):
@@ -66,17 +69,20 @@ class DataBase:
         return key in self.data
     
     def get_values(self,key):
-        return list(self.data[key])
+        try:
+            return list(self.data[key])
+        except:
+            return []
        
     def get_all_keys(self):
         return list(self.data.keys())
     
     def get_all_values(self):
-        return list(self.data.values())
+        return [list(x) for x in self.data.values()]
 
 class FileDataBase(DataBase):
-    def __init__(self,name) -> None:
-        super().__init__(name,type_data='files.json')
+    def __init__(self, server_dir, name) -> None:
+        super().__init__(server_dir, name, type_data='files.json')
         self.storage_dir = os.path.join(self.main_dir,'Storage')
         os.makedirs(self.storage_dir,exist_ok=True)
 
@@ -117,14 +123,17 @@ class FileDataBase(DataBase):
     def remove_values_from_key(self,key,values):
         if key in self.data:
             for value in values:
-                self.data[key].remove(value)
+                try:
+                    self.data[key].remove(value)
+                except:
+                    pass
 
-        if len(self.data[key])==0:
-            del self.data[key]
-            self.delete_file_from_storage(key)
+            if len(self.data[key])==0:
+                del self.data[key]
+                self.delete_file_from_storage(key)
 
 
 class TagDataBase(DataBase):
-    def __init__(self,name) -> None:
-        super().__init__(name,type_data='tags.json')
+    def __init__(self, server_dir, name) -> None:
+        super().__init__(server_dir, name, type_data='tags.json')
 

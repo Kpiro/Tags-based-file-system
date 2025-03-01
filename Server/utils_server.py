@@ -1,11 +1,31 @@
+import os
+import shutil
 from colorama import Fore, Style
 import hashlib
 from const import *
 import socket
+
+def to_json_list(dict):
+    return {key: list(value) for key, value in dict.items()}
+
+def to_json_set(dict):
+    return {key: set(value) for key, value in dict.items()}
+
+def remove_server_dir(id):
+    folder_dir = os.path.join(MAIN_DIR, id)
+    if os.path.exists(folder_dir):
+        try:
+            shutil.rmtree(folder_dir)
+            print(f'📁 La carpeta "{id}" fue eliminado satisfactoriamente.')
+        except Exception:
+            print(f'No se pudo eliminar la carpeta "{id}"')
+    else:
+        print(f'La carpeta "{id}" no existe.')
+
 def get_socket(ip):
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.connect((ip, DEFAULT_DATA_PORT))
-        return s
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.connect((ip, DEFAULT_DATA_PORT))
+    return s
 def is_between(k: int, start: int, end: int) -> bool:
     if start < end:
         return start < k <= end
@@ -23,7 +43,7 @@ def recv_file(file_size, conn):
         received_size += len(data)
     return file_data
 def send_file(file_name, file_size,file_content,conn):
-    conn.sendall(f'{file_name},{file_size}')
+    conn.sendall(f'{file_name},{file_size}'.encode('utf-8'))
     resp = conn.recv(1024).decode('utf-8')
     conn.sendall(file_content)
     resp = conn.recv(1024).decode('utf-8')
@@ -36,14 +56,16 @@ def send_multiple_files(file_list, get_file_function, conn):
         if resp != 'OK':
             break
             #FATAL
-    conn.sendall('end-file') 
+    conn.sendall('end-file'.encode('utf-8')) 
 def recv_multiple_files(conn):
     file_list = []
     len_list = []
     content_list = []
     while True:
         file_info = conn.recv(1024).decode('utf-8')
-        if file_info == 'end_file':
+        print('😍file_info', file_info)
+        if file_info == 'end-file':
+            print('😍entrar al break')
             break
         
         conn.send('OK'.encode('utf-8'))

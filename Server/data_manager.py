@@ -1,9 +1,8 @@
 from data_base import FileDataBase, TagDataBase
-main_dir = "./Data_base"
 import os
 import socket
 import json
-from utils_server import recv_multiple_files,send_multiple_files, calculate_hash, is_between
+from utils_server import recv_multiple_files,send_multiple_files, calculate_hash, is_between, to_json_list, to_json_set
 from const import *
 import threading
 
@@ -11,7 +10,7 @@ class DataManager:
     def __init__(self, ip, port = DEFAULT_DATA_PORT):
         self.db_ip = ip
         self.id = calculate_hash(ip)
-        self.data_dir = os.path.join(main_dir,str(self.id))
+        self.data_dir = os.path.join(MAIN_DIR,str(self.id))
         self.db_port = port
         
         os.makedirs(self.data_dir,exist_ok=True)
@@ -123,26 +122,26 @@ class DataManager:
     # GET FILE OR TAGS
         
     def get_tags_from_my_file(self,file):
-        self.my_files.get_values(file)
+        return self.my_files.get_values(file)
     def get_files_from_my_tag(self,tag):
-        self.my_tags.get_values(tag)
+        return self.my_tags.get_values(tag)
 
     # GET FILE OR TAGS
         
     def get_all_my_files(self):
-        self.my_files.get_all_keys()
+        return self.my_files.get_all_keys()
     def get_all_tags_in_my_files(self):
-        self.my_files.get_all_values()
+        return self.my_files.get_all_values()
 
     def get_all_my_tags(self):
-        self.my_tags.get_all_keys()
+        return self.my_tags.get_all_keys()
     def get_all_files_in_my_tags(self):
-        self.my_tags.get_all_values()
+        return self.my_tags.get_all_values()
 
 
     # READ AND WRITE A FILE
     def download_my_file(self,file):
-        self.my_files.download_file(file)
+        return self.my_files.download_file(file)
 
     def upload_my_file(self,name,data):
         self.my_files.upload_file(name,data)
@@ -160,14 +159,17 @@ class DataManager:
             tags = self.succ_tags
             files = self.succ_files
         # Send tags
-        conn.sendall(json.dumps(tags.data).encode('utf-8'))
+        print('😍 😍 😍 yaayayahd')
+        ann = tags.load_data()
+        print(f'😍 Pusheando---> tags: {ann}, owner_info: {owner_info}, ID: {self.id}')
+        conn.sendall(json.dumps(ann).encode('utf-8'))
 
         resp = conn.recv(1024).decode('utf-8')
         if resp != f"OK":
             raise Exception("ACK negativo")
 
         # Send files
-        conn.sendall(json.dumps(files.data).encode('utf-8'))
+        conn.sendall(json.dumps(files.load_data()).encode('utf-8'))
 
         resp = conn.recv(1024).decode('utf-8')
         if resp != "OK":
@@ -185,7 +187,9 @@ class DataManager:
                 self.succ_tags.clear_data_base()
 
         # Receive tags
-        tags_json = json.loads(conn.recv(1024).decode('utf-8'))
+        ann = conn.recv(1024).decode('utf-8')
+        print(f'😍Pulleando---> tags: {ann}, owner_info: {owner_info}, ID: {self.id}')
+        tags_json = json.loads(ann)
         conn.sendall('OK'.encode('utf-8'))
 
         # Receive files
@@ -203,7 +207,7 @@ class DataManager:
         elif owner_info == MY_INFO:
             self.my_tags.merge_data(tags_json)
             self.my_files.merge_data(files_json)
-        name_list,_, content_list = recv_multiple_files()
+        name_list,_, content_list = recv_multiple_files(conn)
 
         for name, content in zip(name_list,content_list):
             if owner_info == PRED_INFO:
@@ -226,14 +230,14 @@ class DataManager:
         my_id = calculate_hash(self.db_ip)
 
         tags_to_delegate = {}
-        for k, v in self.get_all_my_tags():
+        for k, v in self.my_tags.data.items():
             tag_hash = calculate_hash(k)
             if not is_between(tag_hash, new_owner_id, my_id):
                 tags_to_delegate[k] = v
                 i_t+=1
 
         files_to_delegate = {}
-        for k, v in self.get_all_my_files():
+        for k, v in self.my_files.data.items():
             file_name_hash = calculate_hash(k)
             if not is_between(file_name_hash, new_owner_id, my_id):
                 files_to_delegate[k] = v
@@ -248,19 +252,19 @@ class DataManager:
             if resp != 'OK':
                 raise Exception("ACK negativo")
 
-            s.sendall(json.dumps(tags_to_delegate).encode('utf-8'))
+            s.sendall(json.dumps(to_json_list(tags_to_delegate)).encode('utf-8'))
 
             resp = s.recv(1024).decode('utf-8')
             if resp != 'OK':
                 raise Exception("ACK negativo")
 
-            s.sendall(json.dumps(files_to_delegate).encode('utf-8'))
+            s.sendall(json.dumps(to_json_list(files_to_delegate)).encode('utf-8'))
 
             resp = s.recv(1024).decode('utf-8')
             if resp!= 'OK':
                 raise Exception("ACK negativo")
             
-            send_multiple_files(files_to_delegate,self.download_my_file,s)
+            send_multiple_files(files_to_delegate.keys(),self.download_my_file,s)
             
             s.close()
 
@@ -318,6 +322,7 @@ class DataManager:
     def handle_request(self, conn, request):
         # Send all my stored data
         if request == f"{PUSH_MY_INFO}":
+            print('😍 😍 😍 lindo')
             self.push_data(owner_info=MY_INFO,clean_info=False,conn = conn)
         elif request == f"{PUSH_PRED_INFO}":
             self.push_data(owner_info=PRED_INFO,clean_info=False,conn = conn)

@@ -1,5 +1,6 @@
 import struct
 import threading
+import time
 from colorama import Fore, Back, Style, init
 import socket
 import json
@@ -20,9 +21,11 @@ class Client:
         os.makedirs(self.storage_dir, exist_ok=True)
         self.local_ip = socket.gethostbyname(socket.gethostname())
         self.client_socket = None
+        self.is_connected = False
 
         threading.Thread(target=self.discover_server).start()  
         threading.Thread(target=self.send_message_multicast).start()
+        threading.Thread(target=self.main_func).start()
 
     def discover_server(self):
         # Crear un socket TCP para recibir respuesta de servidores
@@ -51,13 +54,7 @@ class Client:
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.client_socket.connect((server_ip, int(server_port)))
 
-        self.show_menu()
-        while True:
-            command = input("Enter a command: ")
-            client.parse_command(command)
-            if command == "exit":
-                print("🏃 Exiting...")
-                break
+        self.is_connected = True
 
     def send_message_multicast(self):
         """
@@ -77,6 +74,25 @@ class Client:
             sock.close()
         except Exception as e:
             print("Error en multicast discovery:", e)
+
+    def main_func(self):
+        timeout = 10  # Tiempo máximo de espera en segundos
+        start_time = time.time()
+
+        while not self.is_connected:
+            if time.time() - start_time > timeout:
+                print("Tiempo de espera agotado, no se pudo conectar.")
+                break  # Sal del bucle si se supera el tiempo límite
+            time.sleep(0.5)  # Espera antes de volver a intentar
+
+        if self.is_connected:
+            self.show_menu()
+            while True:
+                command = input("Enter a command: ")
+                client.parse_command(command)
+                if command == "exit":
+                    print("🏃 Exiting...")
+                    break
 
     def show_menu(self):
         # Imprimir el menú con colores
@@ -153,7 +169,7 @@ class Client:
 
                         while True:
                             print('response: ', response)
-                            if response == 'end_file':
+                            if response == 'end-file':
                                 break
                             file_info = response.split(',',1)
                             file_name = file_info[0]
@@ -249,7 +265,8 @@ class Client:
                             else:
                                 print('Invalid')
                                 return
-                        response = self.send_request('end_file')
+                        response = self.send_request('end-file')
+                        print('😍 es ok?', response)
                         if response == 'OK':
                             response = self.send_request(tags)
                             print(response)

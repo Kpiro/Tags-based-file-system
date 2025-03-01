@@ -113,8 +113,10 @@ class Server:
             print('tag_list: ',tag_list)
             return self.node.add_tags(tag_query,tag_list)
         elif request == 'add-files':
+            print('🚫 entro al server')
             client_socket.send('OK'.encode('utf-8'))
             file_list, len_list, content_list = recv_multiple_files(client_socket)
+            client_socket.send('OK'.encode('utf-8'))
             tag_arg = client_socket.recv(1024).decode('utf-8')
             tag_list = [tag.strip() for tag in tag_arg.split(',')]
             return self.node.add_files(file_list,tag_list,len_list,content_list)
@@ -131,8 +133,10 @@ class Server:
             tag_query = [query.strip() for query in client_socket.recv(1024).decode('utf-8').split(',')]
             return self.node.delete_files(tag_query)
         elif request == 'list':
+            print('😍es list')
             client_socket.send('OK'.encode('utf-8'))
             tag_query = [query.strip() for query in client_socket.recv(1024).decode('utf-8').split(',')]
+            print('😍tag query', tag_query)
             return self.node.list_files(tag_query)
         elif request == 'download':
             client_socket.send('OK'.encode('utf-8'))
@@ -144,7 +148,7 @@ class Server:
                 if response == 'OK':
                     client_socket.sendall(file_content)
                     response = client_socket.recv(1024).decode('utf-8')
-            return 'end_file'
+            return 'end-file'
             # client_socket.sendall('end_file'.encode('utf-8'))
 
 

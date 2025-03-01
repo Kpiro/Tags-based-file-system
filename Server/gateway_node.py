@@ -78,6 +78,7 @@ class GatewayNode(ChordNode):
         try:
             files = self.read_service.retrieve_files(tag_query)
             tags = self.read_service.retrieve_tags(files)
+            print(f'🤨🤨 tags del delete file {tags}')
             self.writen_service.delete_files(files)
             self.writen_service.delete_files_from_tags(tags,files)
         except Exception:
@@ -113,6 +114,7 @@ class GatewayNode(ChordNode):
         except Exception:
             return str(ErrorMSG('Files could not be listed'))+'\n'+str(FilesMSG(files))
         else:
+            print('😍 listó')
             return str(SuccesMSG('Files listed successfully'))+'\n'+str(FilesMSG(files))
     
     def download_files(self,tag_query):
