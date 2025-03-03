@@ -22,6 +22,7 @@ class ReadService(Service):
         
         for owner, tag in zip(tags_owners, tag_list):
             ans = owner.get_files_from_tag(tag)
+            print('💩💩 escuela', tag == 'escuela')
             print('get_files_from_tag: ', ans)
             
             if ans['state'] == 'Error':

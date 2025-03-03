@@ -13,7 +13,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copiar los archivos necesarios
 COPY Client/client.py /app/Client/client.py
 COPY Client/client.sh /usr/local/bin/client.sh
-# COPY Client/streamlit_app.py /app/Client/streamlit_app.py
+COPY Client/streamlit_app.py /app/Client/streamlit_app.py
 COPY Client/utils_client.py /app/Client/utils_client.py
 
 # Asegurarse de que el script sea ejecutable

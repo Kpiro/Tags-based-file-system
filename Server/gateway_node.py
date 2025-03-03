@@ -114,8 +114,9 @@ class GatewayNode(ChordNode):
         except Exception:
             return str(ErrorMSG('Files could not be listed'))+'\n'+str(FilesMSG(files))
         else:
-            print('😍 listó')
-            return str(SuccesMSG('Files listed successfully'))+'\n'+str(FilesMSG(files))
+            # print('😍 listó')
+            # return str(SuccesMSG('Files listed successfully'))+'\n'+str(FilesMSG(files))
+            return files
     
     def download_files(self,tag_query):
         file_names = self.read_service.retrieve_files(tag_query)
@@ -137,6 +138,7 @@ class GatewayNode(ChordNode):
         except Exception:
             return str(ErrorMSG('Files could not be listed'))
         else:
-            return str(SuccesMSG('Files listed successfully'))+'\n'+str(FilesMSG(file_list=files,tag_list=tags))
+            # return str(SuccesMSG('Files listed successfully'))+'\n'+str(FilesMSG(file_list=files,tag_list=tags))
+            return files, tags
 
         

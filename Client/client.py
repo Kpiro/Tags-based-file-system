@@ -1,3 +1,4 @@
+import ast
 import struct
 import threading
 import time
@@ -22,39 +23,41 @@ class Client:
         self.local_ip = socket.gethostbyname(socket.gethostname())
         self.client_socket = None
         self.is_connected = False
+        self.connect_server() 
+        # threading.Thread(target=self.main_func).start()
 
+    def connect_server(self):
         threading.Thread(target=self.discover_server).start()  
         threading.Thread(target=self.send_message_multicast).start()
-        threading.Thread(target=self.main_func).start()
 
     def discover_server(self):
-        # Crear un socket TCP para recibir respuesta de servidores
-        tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        tcp_socket.bind(('', DEFAULT_CLIENT_PORT))  
-        tcp_socket.listen(5)
+        while not self.is_connected:  # Seguir buscando hasta conectarse
+            print("[🔍] Buscando servidores disponibles...")
+            tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            tcp_socket.settimeout(5)
+            tcp_socket.bind(('', DEFAULT_CLIENT_PORT))  
+            tcp_socket.listen(5)
 
-        print(f"[*] Cliente escuchando en {self.local_ip}:{DEFAULT_CLIENT_PORT}")
-
-        # Esperar conexiones TCP de servidores
-        while True:
             try:
                 conn, addr = tcp_socket.accept()
-                tcp_socket.settimeout(5)  # Espera un tiempo por respuestas
-                data = conn.recv(1024).decode('utf-8')
-                server_ip, server_port = data.split(',')
-                print(f"Servidor encontrado: {server_ip}:{server_port}")
-                conn.close()
-                break
+                with conn:
+                    data = conn.recv(1024).decode('utf-8')
+                    if data:
+                        server_ip, server_port = data.split(',')
+                        print(f"✅ Servidor encontrado: {server_ip}:{server_port}")
+
+                        self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                        self.client_socket.connect((server_ip, int(server_port)))
+                        self.is_connected = True
+                        return  # Salir de la función si la conexión fue exitosa
             except socket.timeout:
-                print(f'[*] No se pudo conectar a ningún servidor')
-                break 
+                print("❌ No se encontró servidor, reintentando...")
+            finally:
+                tcp_socket.close()
 
-        # Conectar al primer servidor encontrado
-        print(f"Conectando al servidor en {server_ip}:{server_port}")
-        self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.client_socket.connect((server_ip, int(server_port)))
+            time.sleep(2)  # Esperar antes de intentar otra vez
 
-        self.is_connected = True
+
 
     def send_message_multicast(self):
         """
@@ -82,17 +85,25 @@ class Client:
         while not self.is_connected:
             if time.time() - start_time > timeout:
                 print("Tiempo de espera agotado, no se pudo conectar.")
-                break  # Sal del bucle si se supera el tiempo límite
+                return  # Salir si no se encuentra un servidor
             time.sleep(0.5)  # Espera antes de volver a intentar
 
         if self.is_connected:
             self.show_menu()
             while True:
                 command = input("Enter a command: ")
-                client.parse_command(command)
                 if command == "exit":
                     print("🏃 Exiting...")
                     break
+                response = self.parse_command(command)
+
+                # Si el servidor se cae y se detecta en `send_request`, intentamos reconectar
+                if response == "ERROR: Server disconnected":
+                    print("🔄 Reintentando conexión...")
+                    while not self.is_connected:
+                        time.sleep(1)
+                    print("✅ Conectado a un nuevo servidor.")
+
 
     def show_menu(self):
         # Imprimir el menú con colores
@@ -129,9 +140,18 @@ class Client:
         print(f'{Fore.RED}e.a.: exit{Style.RESET_ALL}')
         print(f'{Fore.CYAN}--------------------------------------------------------------------{Style.RESET_ALL}')
 
-    def send_request(self,request):
-        self.client_socket.send(request.encode('utf-8'))
-        return self.client_socket.recv(1024).decode('utf-8')
+    def send_request(self, request):
+        try:
+            self.client_socket.send(request.encode('utf-8'))
+            return self.client_socket.recv(1024).decode('utf-8')
+        except (ConnectionResetError, BrokenPipeError, OSError):
+            print("⚠️ Conexión con el servidor perdida. Intentando reconectar...")
+            self.client_socket.close()
+            self.client_socket = None
+            self.is_connected = False
+            self.connect_server()  # Reintentar conexión con otro servidor
+            return "ERROR: Server disconnected"
+
     
     def parse_command(self,request):
         cmd =''
@@ -146,11 +166,10 @@ class Client:
             self.client_socket.close()
             return
         elif cmd == "show":
-            self.client_socket.send(cmd.encode('utf-8'))
-            response = self.client_socket.recv(1024).decode('utf-8')
+            response = self.send_request(cmd)
             print(response)
             return
-
+            
         try:
             params = [param.strip() for param in cmd_parts[1].split("--")]
             print('params: ',params)
@@ -174,16 +193,24 @@ class Client:
                             file_info = response.split(',',1)
                             file_name = file_info[0]
                             file_size = int(file_info[1])
-                            self.client_socket.send('OK'.encode('utf-8'))
-                            file_path = os.path.join(self.storage_dir,file_name)
-                            file_data = bytearray()
-                            received_size = 0
-                            while received_size < file_size:
-                                data = self.client_socket.recv(1024)  # Recibir 1024 bytes
-                                if not data:
-                                    break
-                                file_data.extend(data)  # Agregar los datos a la variable
-                                received_size += len(data)
+                            try:
+                                self.client_socket.send('OK'.encode('utf-8'))
+                                file_path = os.path.join(self.storage_dir,file_name)
+                                file_data = bytearray()
+                                received_size = 0
+                                while received_size < file_size:
+                                    data = self.client_socket.recv(1024)  # Recibir 1024 bytes
+                                    if not data:
+                                        break
+                                    file_data.extend(data)  # Agregar los datos a la variable
+                                    received_size += len(data)
+                            except (ConnectionResetError, BrokenPipeError, OSError):
+                                print("⚠️ Conexión con el servidor perdida. Intentando reconectar...")
+                                self.client_socket.close()
+                                self.client_socket = None
+                                self.is_connected = False
+                                self.connect_server()  # Reintentar conexión con otro servidor
+                                return "ERROR: Server disconnected"
                             response = self.send_request('OK')
 
                             with open(file_path, "wb") as dest_file:
@@ -255,13 +282,21 @@ class Client:
                             response = self.send_request(f'{file_name},{file_size}')
                             print(response)
                             if response == "OK":
-                                with open(file_path, "rb") as source_file:
-                                    self.client_socket.sendall(source_file.read())
-                                    response = self.client_socket.recv(1024).decode('utf-8')
-                                    print(response)
-                                    if response != 'OK':
-                                        print('Invalid')
-                                        return
+                                try:
+                                    with open(file_path, "rb") as source_file:
+                                        self.client_socket.sendall(source_file.read())
+                                        response = self.client_socket.recv(1024).decode('utf-8')
+                                        print(response)
+                                        if response != 'OK':
+                                            print('Invalid')
+                                            return
+                                except (ConnectionResetError, BrokenPipeError, OSError):
+                                    print("⚠️ Conexión con el servidor perdida. Intentando reconectar...")
+                                    self.client_socket.close()
+                                    self.client_socket = None
+                                    self.is_connected = False
+                                    self.connect_server()  # Reintentar conexión con otro servidor
+                                    return "ERROR: Server disconnected"
                             else:
                                 print('Invalid')
                                 return
@@ -275,11 +310,126 @@ class Client:
                         print('Invalid')
                         return
 
+    def add_files_to_tags(self, files, tags):
+        response = self.send_request('add-files')
+        print(response)
+        if response == "OK":
+            file_path_list = [file_path.strip() for file_path in files.split(',')]
+            for file_path in file_path_list:
+                file_name = os.path.basename(file_path)
+                file_size = os.path.getsize(file_path)
+                print(f'file_info: {file_name} -- {file_size}' )
+                response = self.send_request(f'{file_name},{file_size}')
+                print(response)
+                if response == "OK":
+                    try:
+                        with open(file_path, "rb") as source_file:
+                            self.client_socket.sendall(source_file.read())
+                            response = self.client_socket.recv(1024).decode('utf-8')
+                            print(response)
+                            if response != 'OK':
+                                print('Invalid')
+                                return
+                    except (ConnectionResetError, BrokenPipeError, OSError):
+                        print("⚠️ Conexión con el servidor perdida. Intentando reconectar...")
+                        self.client_socket.close()
+                        self.client_socket = None
+                        self.is_connected = False
+                        self.connect_server()  # Reintentar conexión con otro servidor
+                        return "ERROR: Server disconnected"
+                else:
+                    print('Invalid')
+                    return
+            response = self.send_request('end-file')
+            print('😍 es ok?', response)
+            if response == 'OK':
+                response = self.send_request(tags)
+                print(response)
+                return
+        else:
+            print('Invalid')
+            return
             
+    def add_tags_to_file_by_query(self, query, tags):
+        response = self.send_request('add-tags')
+        if response == 'OK':
+            response = self.send_request(query)
+            if response == 'OK':
+                response = self.send_request(tags)
+                print(response)
+
+    def delete_files_by_query(self, query):
+        response = self.send_request('delete-files')
+        if response == 'OK':
+            response = self.send_request(query)
+            print(response)
+
+    def delete_tags_from_files(self, query, tags):
+        response = self.send_request('delete-tags')
+        if response == 'OK':
+            response = self.send_request(query)
+            if response == 'OK':
+                response = self.send_request(tags)
+                print(response)
+        return response
+
+    def list_files_by_query(self, query):
+        response = self.send_request('list')
+        if response == 'OK':
+            response = self.send_request(query)
+            print(response)
+        
+        return ast.literal_eval(response)
+
+    def show_all_files(self,):
+        response = self.send_request('show')
+        print(response)
+        return ast.literal_eval(response)
+    
+    def download_files(self, query):
+        response = self.send_request('download')
+        if response == 'OK':
+        
+            response = self.send_request(query)
+            i = 0
+            while True:
+                print('response: ', response)
+                if response == 'end-file':
+                    if i == 0: return 'No existe archivo con dicha etiqueta.'
+                    break
+                file_info = response.split(',',1)
+                file_name = file_info[0]
+                file_size = int(file_info[1])
+                try:
+                    self.client_socket.send('OK'.encode('utf-8'))
+                    file_path = os.path.join(self.storage_dir,file_name)
+                    file_data = bytearray()
+                    received_size = 0
+                    while received_size < file_size:
+                        data = self.client_socket.recv(1024)  # Recibir 1024 bytes
+                        if not data:
+                            break
+                        file_data.extend(data)  # Agregar los datos a la variable
+                        received_size += len(data)
+                except (ConnectionResetError, BrokenPipeError, OSError):
+                    print("⚠️ Conexión con el servidor perdida. Intentando reconectar...")
+                    self.client_socket.close()
+                    self.client_socket = None
+                    self.is_connected = False
+                    self.connect_server()  # Reintentar conexión con otro servidor
+                    return "ERROR: Server disconnected"
+                response = self.send_request('OK')
+
+                with open(file_path, "wb") as dest_file:
+                    dest_file.write(file_data)
+                    print(f'File {file_name} downloaded succesfully')
+                i+=1
+
+            return 'OK'
 
         
     
 
-if __name__ == "__main__":
-    client = Client()
+# if __name__ == "__main__":
+#     client = Client()
 

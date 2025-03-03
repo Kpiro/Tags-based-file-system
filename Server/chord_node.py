@@ -64,6 +64,11 @@ class ChordNode:
                 pull_socket.sendall(f'{PUSH_MY_INFO}'.encode('utf-8'))
                 self.data_manager.pull_data(owner_info=PRED_INFO,clean_info=True,conn=pull_socket)
                 pull_socket.close()
+
+                pull_socket = get_socket(self.succ.ip)
+                pull_socket.sendall(f'{PUSH_MY_INFO}'.encode('utf-8'))
+                self.data_manager.pull_data(owner_info=SUCC_INFO, clean_info=True, conn=pull_socket)
+                pull_socket.close()
                 
             # Check node still exists
             elif node.check_node():
@@ -351,8 +356,10 @@ class ChordNode:
             tag_names = json.loads(data[2].replace("'", '"'))
             self.data_manager.add_tags_to_my_file(file_name,tag_names)
             
-            notify_neighbor(op=HANDLE_ADD_TAGS_TO_FILE_PRED, ip=self.succ.ip, obj_name=file_name, obj_list=tag_names)
-            notify_neighbor(op=HANDLE_ADD_TAGS_TO_FILE_SUCC, ip=self.pred.ip, obj_name=file_name, obj_list=tag_names)
+            if self.succ:
+                notify_neighbor(op=HANDLE_ADD_TAGS_TO_FILE_PRED, ip=self.succ.ip, obj_name=file_name, obj_list=tag_names)
+            if self.pred:
+                notify_neighbor(op=HANDLE_ADD_TAGS_TO_FILE_SUCC, ip=self.pred.ip, obj_name=file_name, obj_list=tag_names)
 
             resp = {'state':'OK'}
 
@@ -371,10 +378,14 @@ class ChordNode:
                 self.data_manager.upload_my_file(file_name,file_data)
                 print('hizo upload')
 
-                notify_neighbor(op=HANDLE_ADD_TAGS_TO_FILE_PRED, ip=self.succ.ip, obj_name=file_name, obj_list=tag_names)
-                notify_neighbor(op=HANDLE_ADD_TAGS_TO_FILE_SUCC, ip=self.pred.ip, obj_name=file_name, obj_list=tag_names)
-                notify_neighbor(op=HANDLE_UPLOAD_PRED, ip=self.succ.ip, obj_name=file_name, obj_list=None, content=file_data)
-                notify_neighbor(op=HANDLE_UPLOAD_SUCC, ip=self.pred.ip, obj_name=file_name, obj_list=None, content=file_data)
+                if self.succ:
+                    notify_neighbor(op=HANDLE_ADD_TAGS_TO_FILE_PRED, ip=self.succ.ip, obj_name=file_name, obj_list=tag_names)
+                if self.pred:
+                    notify_neighbor(op=HANDLE_ADD_TAGS_TO_FILE_SUCC, ip=self.pred.ip, obj_name=file_name, obj_list=tag_names)
+                if self.succ:
+                    notify_neighbor(op=HANDLE_UPLOAD_PRED, ip=self.succ.ip, obj_name=file_name, obj_list=None, content=file_data)
+                if self.pred:
+                    notify_neighbor(op=HANDLE_UPLOAD_SUCC, ip=self.pred.ip, obj_name=file_name, obj_list=None, content=file_data)
 
                 resp = {'state':'OK'}
 
@@ -391,8 +402,10 @@ class ChordNode:
             file_names = json.loads(data[2].replace("'", '"'))
             self.data_manager.add_files_to_my_tag(tag_name,file_names)
 
-            notify_neighbor(op=HANDLE_ADD_FILES_TO_TAG_PRED, ip=self.succ.ip, obj_name=tag_name, obj_list=file_names)
-            notify_neighbor(op=HANDLE_ADD_FILES_TO_TAG_SUCC, ip=self.pred.ip, obj_name=tag_name, obj_list=file_names)
+            if self.succ:
+                notify_neighbor(op=HANDLE_ADD_FILES_TO_TAG_PRED, ip=self.succ.ip, obj_name=tag_name, obj_list=file_names)
+            if self.pred:
+                notify_neighbor(op=HANDLE_ADD_FILES_TO_TAG_SUCC, ip=self.pred.ip, obj_name=tag_name, obj_list=file_names)
 
             resp = {'state':'OK'}
 
@@ -405,8 +418,10 @@ class ChordNode:
             file_name = data[1]
             self.data_manager.delete_my_file(file_name)
 
-            notify_neighbor(op=HANDLE_DELETE_FILE_PRED, ip=self.succ.ip, obj_name=file_name)
-            notify_neighbor(op=HANDLE_DELETE_FILE_SUCC, ip=self.pred.ip, obj_name=file_name)
+            if self.succ:
+                notify_neighbor(op=HANDLE_DELETE_FILE_PRED, ip=self.succ.ip, obj_name=file_name)
+            if self.pred:
+                notify_neighbor(op=HANDLE_DELETE_FILE_SUCC, ip=self.pred.ip, obj_name=file_name)
 
             resp = {'state':'OK'}
 
@@ -420,8 +435,10 @@ class ChordNode:
             file_list = json.loads(data[2].replace("'", '"'))
             self.data_manager.remove_files_from_my_tag(tag_name,file_list)
 
-            notify_neighbor(op=HANDLE_REMOVE_FILES_FROM_TAG_PRED, ip=self.succ.ip, obj_name=tag_name, obj_list=file_list)
-            notify_neighbor(op=HANDLE_REMOVE_FILES_FROM_TAG_SUCC, ip=self.pred.ip, obj_name=tag_name, obj_list=file_list)
+            if self.succ:
+                notify_neighbor(op=HANDLE_REMOVE_FILES_FROM_TAG_PRED, ip=self.succ.ip, obj_name=tag_name, obj_list=file_list)
+            if self.pred:
+                notify_neighbor(op=HANDLE_REMOVE_FILES_FROM_TAG_SUCC, ip=self.pred.ip, obj_name=tag_name, obj_list=file_list)
 
             resp = {'state':'OK'}
         elif option == DELETE_TAGS_FROM_FILE:
@@ -429,8 +446,10 @@ class ChordNode:
             tag_list = json.loads(data[2].replace("'", '"'))
             self.data_manager.remove_tags_from_my_file(file_name,tag_list)
 
-            notify_neighbor(op=HANDLE_REMOVE_TAGS_FROM_FILE_PRED, ip=self.succ.ip, obj_name=file_name, obj_list=tag_list)
-            notify_neighbor(op=HANDLE_REMOVE_TAGS_FROM_FILE_SUCC, ip=self.pred.ip, obj_name=file_name, obj_list=tag_list)
+            if self.succ:
+                notify_neighbor(op=HANDLE_REMOVE_TAGS_FROM_FILE_PRED, ip=self.succ.ip, obj_name=file_name, obj_list=tag_list)
+            if self.pred:    
+                notify_neighbor(op=HANDLE_REMOVE_TAGS_FROM_FILE_SUCC, ip=self.pred.ip, obj_name=file_name, obj_list=tag_list)
 
             resp = {'state':'OK'}
         elif option == GET_ALL_FILES:

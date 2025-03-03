@@ -12,7 +12,11 @@ def update_neighbor_data(update_function, conn = None, two_params = True):
     
     if two_params:
         conn.sendall('OK'.encode('utf-8'))
-        obj_list = json.loads(conn.recv(1024).decode('utf-8'))
+        recv = conn.recv(1024)
+        if recv:
+            obj_list = json.loads(recv.decode('utf-8'))
+        else:
+            obj_list = []
         update_function(obj_name,obj_list)
         conn.sendall('OK'.encode('utf-8'))
     else:
@@ -31,7 +35,7 @@ def notify_neighbor(op: int, ip: str, obj_name: str, obj_list: list = None, cont
         raise Exception ('ACK negative!')
     
     if content:
-        sock.sendall(f'{obj_name,len(content)}'.encode('utf-8'))
+        sock.sendall(f'{obj_name},{len(content)}'.encode('utf-8'))
         resp = sock.recv(1024).decode('utf-8')
         if resp != 'OK':
             raise Exception ('ACK negative!')
